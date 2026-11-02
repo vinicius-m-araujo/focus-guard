@@ -1,4 +1,4 @@
-# FocusGuard 🛡️
+﻿# FocusGuard 🛡️
 
 **Bloqueie sites e apps que roubam sua atenção — na raiz, no nível do sistema.**
 
@@ -168,3 +168,5 @@ Quer compilar, testar ou contribuir? Veja o
 e processo de release.
 
 > **FocusGuard** — Protegendo seu foco, um bloqueio de cada vez. 🎯
+
+<!-- sync: repository update -->
