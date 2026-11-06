@@ -133,3 +133,7 @@ cmd/focusguard-web/assets/*
 # artefatos locais de depuração (ex.: logs_<jobid>/), nunca versionar.
 logs_*/
 
+# Local validation toolchains and reports
+.tools/
+validation-results/
+

@@ -1,4 +1,4 @@
-﻿# FocusGuard 🛡️
+# FocusGuard 🛡️
 
 **Bloqueie sites e apps que roubam sua atenção — na raiz, no nível do sistema.**
 
@@ -9,6 +9,8 @@ nada de "só mais cinco minutos".
 
 Você controla tudo pelo **painel web** e pela **bandeja do sistema** — sem
 abrir terminal.
+
+O FocusGuard é exclusivo para **Windows**.
 
 ---
 
@@ -32,7 +34,6 @@ abrir terminal.
 | Sistema | Como |
 |---|---|
 | 🪟 Windows | Baixe o `.msi` da [release](https://github.com/ViniciusMoraisAraujo/focus-guard/releases) e execute |
-| 🐧 Linux | `sudo ./install-linux.sh install` (dentro do `.tar.gz` da release) |
 
 **2. Abra o painel**
 
@@ -57,27 +58,16 @@ Pronto. 🎯
 atalho no Desktop. Desinstale em *Programas e Recursos* (`msiexec /x …`); o
 estado em `C:\ProgramData\FocusGuard\` é preservado.
 
-**Linux** — `install-linux.sh` instala em `/opt/focusguard/`, cria a unit
-systemd, o grupo `focusguard`, a bandeja (autostart) e o atalho no Desktop.
-Para o painel/bandeja funcionarem **sem sudo**, seu usuário precisa estar no
-grupo:
-
-```bash
-sudo usermod -aG focusguard $USER    # e faça logout/login
-```
-
 **Onde ficam os arquivos**
 
 | | Binários (pasta protegida) | Dados |
 |---|---|---|
-| 🐧 Linux | `/opt/focusguard/` | `/var/lib/focusguard/` |
 | 🪟 Windows | `C:\Program Files\FocusGuard\` | `C:\ProgramData\FocusGuard\` |
 
 **Desinstalar** — Windows: *Programas e Recursos* (ou `msiexec /x …`).
-Linux: `sudo ./install-linux.sh uninstall`.
 
-> ⚠️ Instalar e gerenciar o serviço exige **Administrador** (Windows) ou
-> **sudo** (Linux). O uso normal não.
+> ⚠️ Instalar e gerenciar o serviço exige **Administrador** no Windows.
+> O uso normal não.
 </details>
 
 ---

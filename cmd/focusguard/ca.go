@@ -52,7 +52,7 @@ func handleCAInstallCommand() {
 	err := caInstallRuns(caDirPath())
 	if errors.Is(err, errCARequiresElevation) {
 		fmt.Println("⚠ Execute com privilégio de administrador/root para instalar a CA no trust store.")
-		fmt.Println("  Windows: rode o prompt como administrador.  Linux: sudo.")
+		fmt.Println("  Windows: rode o prompt como administrador.")
 		osExit(1)
 	}
 	if err != nil {

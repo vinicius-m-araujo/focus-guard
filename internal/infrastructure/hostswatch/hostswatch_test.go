@@ -530,6 +530,7 @@ func TestHandleWriteEvent_CallsDetectTamper(t *testing.T) {
 		w.eventLoop()
 		close(done)
 	}()
+	t.Cleanup(func() { close(w.stopCh); <-done })
 
 	select {
 	case w.events <- fsEvent{op: "write"}:
@@ -537,10 +538,7 @@ func TestHandleWriteEvent_CallsDetectTamper(t *testing.T) {
 		t.Fatal("failed to send event")
 	}
 
-	time.Sleep(50 * time.Millisecond)
-
-	w.stopCh <- struct{}{}
-	<-done
+	waitForSyncCall(t, enf)
 
 	if calls := atomic.LoadInt32(&enf.syncCalls); calls != 1 {
 		t.Errorf("expected 1 Sync call after write event, got %d", calls)
@@ -573,20 +571,31 @@ func TestDebounce_MultipleEvents(t *testing.T) {
 		w.eventLoop()
 		close(done)
 	}()
+	t.Cleanup(func() { close(w.stopCh); <-done })
 
 	for i := 0; i < 5; i++ {
 		w.events <- fsEvent{op: "write"}
 	}
 
-	time.Sleep(100 * time.Millisecond)
-
-	w.stopCh <- struct{}{}
-	<-done
+	waitForSyncCall(t, enf)
 
 	calls := atomic.LoadInt32(&enf.syncCalls)
 	if calls != 1 {
 		t.Errorf("expected exactly 1 Sync call (debounced), got %d", calls)
 	}
+}
+
+// Observe the asynchronous restore instead of assuming a fixed scheduler delay.
+func waitForSyncCall(t *testing.T, enf *mockEnforcer) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if atomic.LoadInt32(&enf.syncCalls) > 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("timed out waiting for the asynchronous hosts restore")
 }
 
 func TestRenameEvent_TriggersSync(t *testing.T) {

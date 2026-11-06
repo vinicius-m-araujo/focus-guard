@@ -2,185 +2,61 @@ name: test
 
 on:
   push:
-    branches:
-      - '**'
+    branches: ['**']
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  # Validação do docs/session-log/ (handoff diário entre sessões de agentes —
-  # regra do AGENT.md raiz §4.15): o CI confere a ESTRUTURA de todos os
-  # resumos existentes (nome YYYY-MM-DD.md, título e seções do template). Não
-  # exige o arquivo de HOJE — o push pode acontecer em dia diferente do
-  # trabalho; a checagem do dia é local (make session-check).
-  session-log:
-    runs-on: ubuntu-latest
+  windows-validation:
+    runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Session-log structure check
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: focusguard-ui/package-lock.json
+      - name: Validate Windows desktop
+        shell: pwsh
+        run: ./scripts/validate-windows.ps1
+      - name: Validate session log structure
+        shell: bash
         run: bash scripts/check-session-log.sh
-
-      - name: Rules sync check (GEMINI.md vs AGENT.md)
-        run: make sync-rules-check
-
-  # Etapa 0/1 do docs/linux-validation-plan.md: a suíte COMPLETA no Linux —
-  # roda tudo (go test ./...), incluindo cmd/focusguard-daemon de forma hermética
-  # e desprivilegiada (setupDaemonTestEnv em t.TempDir()).
-  linux-full-suite:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      # ./... inclui o internal/system/tray, cgo no Linux — sem os headers o
-      # go build/test falham (mesma dependência que o release.yml instala).
-      - name: Install tray build dependencies (Linux cgo)
+      - name: Build Windows ARM64
+        shell: pwsh
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libayatana-appindicator3-dev libgtk-3-dev
-
-      - name: Build + vet
-        run: |
+          $env:GOARCH = 'arm64'
+          $env:CGO_ENABLED = '0'
           go build ./...
-          go vet ./...
-
-      # gofmt -l falha se houver arquivo fora do formato canônico. O runner
-      # ubuntu faz checkout com LF (o repositório guarda i/lf), então a
-      # checagem é válida — não é afetada pelo core.autocrlf do Windows local.
-      - name: gofmt
-        run: |
-          unformatted="$(gofmt -l .)"
-          if [ -n "$unformatted" ]; then
-            echo "Arquivos fora do gofmt:"
-            echo "$unformatted"
-            exit 1
-          fi
-
-      - name: Check Go→TS contract is up to date
-        run: make contract-check
-
-      # A suíte completa roda de forma hermética e sem exigência de privilégios root.
-      - name: Full test suite
-        run: go test ./... -count=1 -timeout=120s
-
-  # Etapa 3 do bug-hunt (docs/bug-hunt-plan.md): o -race não roda no Windows
-  # local (CGO_ENABLED=0) — a verificação de data races vive aqui, no CI Linux.
-  # Cobre a suíte COMPLETA (docs/linux-validation-plan.md Etapa 0).
-  race:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v5
         with:
-          fetch-depth: 0
+          name: windows-validation
+          path: validation-results/
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+  windows-race:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
-
-      # ./... inclui o internal/system/tray, cgo no Linux — sem os headers o
-      # go build/vet falham (mesma dependência que o release.yml instala).
-      - name: Install tray build dependencies (Linux cgo)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libayatana-appindicator3-dev libgtk-3-dev
-
-      - name: Build + vet
-        run: |
-          go build ./...
-          go vet ./...
-
-      # -race na suíte COMPLETA (docs/linux-validation-plan.md Etapa 0): antes
-      # cobria só 15 pacotes escolhidos; agora roda tudo, incluindo o pacote
-      # cmd/focusguard-daemon — que no Windows não roda nem local (CGO off) nem
-      # no CI — e os testes de plataforma do Linux (enforcer, tlsca, ipc).
-      # O -race exige cgo (CGO_ENABLED=1 no runner ubuntu) e os headers do
-      # tray instalados no passo acima.
-      - name: Race detector — suíte completa
-        run: go test -race -count=1 -timeout=600s ./...
-
-      # Etapa 7 do bug-hunt (docs/bug-hunt-plan.md): o teste de chown do
-      # socket (root:focusguard 0660, TestListen_ChownsSocketToFocusGuardGroup)
-      # faz Skip sem root — o job acima roda como usuário runner, então o
-      # chown nunca é verificado no CI. Este step roda o teste via sudo com um
-      # GOCACHE separado (root escreve em /root, não no cache do runner). O
-      # grep no '--- PASS' evita o falso-verde de um go test -run sem match
-      # (teste renomeado/removido sairia com exit 0 silenciosamente).
-      - name: Socket group chown test (Linux, root)
-        run: |
-          out="$(sudo -E env "PATH=$PATH" GOCACHE=/tmp/fg-root-gocache \
-            go test -count=1 -timeout=120s -run 'TestListen_ChownsSocketToFocusGuardGroup' -v \
-            ./internal/transport/ipc/)"
-          echo "$out"
-          echo "$out" | grep -q -- '--- PASS: TestListen_ChownsSocketToFocusGuardGroup' \
-            || { echo 'chown test não passou (renomeado/skipado?)'; exit 1; }
-
-  # docs/linux-validation-plan.md Etapa 0: mudanças no código Linux nunca
-  # passaram por um check de build Windows no CI (o Windows só era validado na
-  # release). Este job cross-compila a suíte para Windows a partir do Linux —
-  # os rsrc_windows_*.syso são versionados, então o build funciona sem
-  # go-winres. O tray Windows é CGO_ENABLED=0 (como no .goreleaser.yaml).
-  windows-compile-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: msys2/setup-msys2@v2
         with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Cross-compile Windows (build + vet)
+          msystem: UCRT64
+          path-type: inherit
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Race detector
+        shell: msys2 {0}
         run: |
-          GOOS=windows CGO_ENABLED=0 go build ./...
-          GOOS=windows CGO_ENABLED=0 go vet ./...
+          export CGO_ENABLED=1 CC=gcc
+          go test -race ./... -count=1 -timeout=600s
 
-  # Validação TDD da plataforma Android: executa a suíte completa de testes
-  # unitários do app Android com JDK 21.
-  android-unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
-
-      - name: Configure Android SDK Path
-        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
-      - name: Run Android unit tests
-        run: |
-          cd android
-          ./gradlew testDebugUnitTest --stacktrace || {
-            echo "::error::Unit tests failed! Displaying test results:"
-            for f in $(find app/build/test-results/testDebugUnitTest/ -name "*.xml"); do
-              echo "=== TEST RESULT: $f ==="
-              cat "$f"
-            done
-            exit 1
-          }

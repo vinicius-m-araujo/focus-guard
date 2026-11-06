@@ -37,5 +37,5 @@ the daemon over IPC, and render results. The core business logic lives in `inter
 ## Testing & Validation
 
 - `go test ./cmd/focusguard/... ./cmd/focusguard-watchdog/... ./cmd/focusguard-web/...` (run unprivileged).
-- ⚠️ `go test ./cmd/focusguard-daemon/...` on Windows requires an elevated prompt (`requireAdministrator` manifest). On Linux and CI, it runs hermetically unprivileged via `setupDaemonTestEnv`.
+- ⚠️ `go test ./cmd/focusguard-daemon/...` on Windows requires an elevated prompt (`requireAdministrator` manifest). Use the Windows validation workflow for automated tests.
 - `go build ./... && go vet ./...` before finishing any task.

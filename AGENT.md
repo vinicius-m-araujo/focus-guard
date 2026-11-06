@@ -43,30 +43,30 @@ In any of these cases: explain the plan and obtain explicit confirmation before 
 **FocusGuard** is an integrity-focused tool to **block distracting websites and applications** and preserve productivity, operating at the system level (`hosts` file, DNS sinkhole, and firewall rules).
 
 - **CLI (`focusguard`)** — Command-line interface. When invoked without arguments, it opens the web UI in the default browser. One file per command in `cmd/focusguard/` + command table in `commands.go`.
-- **Daemon (`focusguard-daemon`)** — Background service that applies and maintains blocks; communicates with clients via IPC (Unix socket / named pipe).
+- **Daemon (`focusguard-daemon`)** — Background Windows service that applies and maintains blocks; communicates over loopback TCP IPC (`127.0.0.1:48901`).
 - **Tray (`focusguard-tray`)** — System tray icon with quick controls and status updates. Runs unelevated.
 - **Watchdog (`focusguard-watchdog`)** — External health-check monitor and Smart Recovery engine (rolls back broken updates).
 - **Web UI & Server (`focusguard-web`)** — Serves the embedded React 18 + TS UI (`focusguard-ui/`) and proxies IPC actions to the daemon at `http://127.0.0.1:48902`. All 12 screens are implemented: Dashboard, Bloquear, Pomodoro, Agenda, Apps, Presets, Estatísticas, Segurança, Configurações, Login, Rede, Guia.
-- **Mobile (`android/`)** — Native Android app (Kotlin + Jetpack Compose) using local `VpnService` DNS sinkhole and `AccessibilityService`.
 - **Build tool (`focusguard-icon`)** — Build-time generator for multi-size `.ico` and `.png` icons from canonical artwork.
 
 ### Platforms
 
-| Component | Linux | Windows |
-|---|---|---|
-| Firewall | `iptables` / `ip6tables` / `nftables` | `netsh advfirewall` |
-| Hosts | `/etc/hosts` | `C:\Windows\System32\drivers\etc\hosts` |
-| IPC Socket | `/run/focusguard/focusguard.sock` (0660 `focusguard:focusguard`) | `%PROGRAMDATA%\FocusGuard\focusguard.sock` |
-| Service | systemd (`User=focusguard` + capabilities + watchdog) | Native SCM Windows Service (`svc`), `sc.exe` |
-| Install Path | `/opt/focusguard` (root:root) | `C:\Program Files\FocusGuard` (System / All Users) |
-| State Dir | `/var/lib/focusguard/` | `C:\ProgramData\FocusGuard\` |
-| Tray Autostart | `~/.config/autostart` (XDG desktop entry) | HKCU `...\CurrentVersion\Run` |
+FocusGuard supports Windows only. Linux and Android implementations, installers, and release targets have been removed. Use `scripts/validate-windows.ps1` for Windows validation. Older Linux plans are historical.
+
+| Component | Windows |
+|---|---|
+| Firewall | netsh advfirewall |
+| Hosts | C:\Windows\System32\drivers\etc\hosts |
+| Service | SCM (FocusGuard / FocusGuardWatchdog) |
+| IPC | Loopback TCP (`ipc.WindowsPort`, currently 48901) |
+| Install / State | Program Files\FocusGuard / ProgramData\FocusGuard |
+| Tray autostart | HKCU Run |
 
 ---
 
 ## 2. Language and stack
 
-- **Go 1.26.5** (module `focusguard`). No CGO on Windows or Linux, except `focusguard-tray` on Linux (requires GTK3 / appindicator).
+- **Go 1.26.5** (module `focusguard`). Desktop builds use CGO_ENABLED=0; race checks require CGO and MinGW-w64 on Windows.
 - Key dependencies: `fsnotify` (filesystem watchers), `getlantern/systray` (tray), `creativeprojects/go-selfupdate` (update engine), `golang.org/x/sys` (Windows services), `golang.org/x/mod/semver` (version comparison).
 - **Stdlib first**: Avoid adding new dependencies unless strictly necessary.
 
@@ -86,13 +86,13 @@ In any of these cases: explain the plan and obtain explicit confirmation before 
 
 ```
 CLI (focusguard) ────────┐
-Tray (focusguard-tray) ──┼── IPC (Unix socket / JSON) ──→ Daemon (focusguard-daemon)
+Tray (focusguard-tray) ──┼── IPC (loopback TCP / JSON) ──→ Daemon (focusguard-daemon)
 Web (focusguard-web) ────┘                                        │
                                                              [Scheduler]  ← Source of truth in RAM
                                                           ┌────────┴────────┐
                                                      [Store]          [Enforcer]
                                                (atomic state.json)   ┌────┴────┐
-                                                               /etc/hosts  Firewall / DNS Sinkhole
+                                                               hosts      Windows Firewall
                                                           ┌────────┴────────┐
                                                    [HostsWatcher]    [StateWatcher]
                                                   (fsnotify + SHA-256 anti-tamper)
@@ -115,7 +115,7 @@ Packages are organized in 4 layers (`docs/reorg-plan.md`):
 1. **`domain/`**: Business rules — `analytics`, `apps`, `blocks`, `goal`, `interceptor`, `policy`, `pomodoro`, `preset`, `presets`, `recovery`, `schedule`, `scheduler`, `user`, `users`.
 2. **`infrastructure/`**: OS I/O — `autostart`, `dns`, `dnsserver`, `enforcer`, `filelog`, `fsutil`, `hostswatch`, `icon`, `processguard`, `statewatch`, `store`, `tamper`, `update`.
 3. **`transport/`**: IPC / HTTP & metrics — `eventhub`, `httpapi`, `ipc`, `ipcerr`, `metrics`.
-4. **`system/`**: Process lifecycle — `daemon`, `tray`, `watchdog`.
+4. **`system/`**: Process lifecycle — `daemon`, `tray`. The external Windows watchdog lives in `cmd/focusguard-watchdog`.
 
 ---
 
@@ -123,7 +123,7 @@ Packages are organized in 4 layers (`docs/reorg-plan.md`):
 
 1. **Strict TDD (Test-Driven Development) — MANDATORY (Tests FIRST)**:
    Every feature, business rule, or bug fix MUST strictly follow Red → Green → Refactor. Write the failing unit test before implementing production code, within the same commit. Never push code without automated test coverage.
-2. **Per-platform separation**: Use `_windows.go`, `_linux.go`, and `_other.go` suffixes with a common interface in the base file.
+2. **Per-platform separation**: Desktop targets Windows only. Keep Windows API integrations in `_windows.go` files.
 3. **Source of truth in RAM**: The scheduler holds authoritative state in memory; `state.json` is a persisted mirror. On discrepancy, RAM wins and disk is repaired.
 4. **Atomic writes & SHA-256 loop prevention**: `store` writes to temp files before rename. Daemon self-writes are hashed (`MarkSelfWrite`) so watchers never trigger recursive loops.
 5. **Best-effort OS operations**: Non-critical OS failures (firewall warning, notification error, autostart) log and proceed; they **never crash the daemon**.
@@ -172,14 +172,13 @@ make session-check
 ├── docs/                       # Specifications, plans, and daily session logs
 │   ├── ui-plan.md              # Web UI plan & API contract (12 screens)
 │   ├── bug-hunt-plan.md        # Bug-hunt history and regression tests
-│   ├── linux-validation-plan.md# Linux validation suite (Etapas 0–7)
+│   ├── development.md          # Windows build and validation workflow
 │   ├── release.md              # Release checklist and procedures
 │   └── session-log/            # Daily handoff summaries (YYYY-MM-DD.md)
 ├── Makefile                    # build, ui, test, sync-rules, sync-rules-check, session-check
 ├── cmd/                        # 6 binary entry points (CLI, daemon, tray, watchdog, web, icon)
 ├── internal/                   # 34 internal packages across domain, infra, transport, system
 ├── focusguard-ui/              # React 18 + Vite + TS frontend (12 screens)
-├── android/                    # Native Android app (Kotlin + Jetpack Compose)
 ├── packaging/                  # Icons, manifests, Windows versioninfo
 └── scripts/                    # Installer scripts, WiX templates, validation utilities
 ```
@@ -195,7 +194,7 @@ make session-check
 ```
 
 - **Types**: `feat`, `fix`, `perf`, `docs`, `test`, `ci`, `chore`.
-- **Common scopes**: `ui`, `install`, `icon`, `tray`, `update`, `store`, `scheduler`, `enforcer`, `watchers`, `daemon`, `ipc`, `autostart`, `dns`, `android`, `session`.
+- **Common scopes**: `ui`, `install`, `icon`, `tray`, `update`, `store`, `scheduler`, `enforcer`, `watchers`, `daemon`, `ipc`, `autostart`, `dns`, `session`.
 - **Rules**:
   - One commit per coherent change. Keep descriptions ≤ 72 chars in lowercase imperative mood.
   - Never include automated agent or tool footers ("Generated with...", "Co-Authored-By:...").
@@ -210,7 +209,7 @@ Releases are executed manually following `docs/release.md`. Publishing a Git tag
 
 ## 9. Known pitfalls & Gotchas
 
-- **Daemon privileges on Windows**: `focusguard-daemon` requires administrative elevation. Running `go test ./cmd/focusguard-daemon/...` on Windows requires an elevated prompt. On Linux, daemon tests run hermetically unprivileged via `setupDaemonTestEnv`.
+- **Daemon privileges on Windows**: `focusguard-daemon` requires administrative elevation. Running `go test ./cmd/focusguard-daemon/...` on Windows requires an elevated prompt. Use the Windows validation workflow for automated tests.
 - **Tray is unprivileged**: Never add an elevation manifest to the tray.
 - **Immediate daemon restart on update**: Applying an update terminates any active pomodoro session and restarts the daemon immediately (exit code 1 → supervisor restarts with new binary). Persisted blocks in `state.json` are retained and restored.
 - **Windows binary swap locks**: Before updating executables on Windows, the daemon terminates the tray and stops the watchdog service to unlock `.exe` files. If replacement is locked, `MoveFileEx(MOVEFILE_DELAY_UNTIL_REBOOT)` schedules swap on reboot.

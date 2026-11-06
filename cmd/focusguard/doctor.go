@@ -233,14 +233,14 @@ func checkServices(env doctorEnv) doctorResult {
 		return doctorResult{
 			Name: "Serviços", Status: statusFail,
 			Message: fmt.Sprintf("serviço não instalado: %s", strings.Join(missing, ", ")),
-			Fix:     "Rode 'focusguard install' (Linux: systemctl enable --now focusguard).",
+			Fix:     "Rode 'focusguard install'.",
 		}
 	}
 	if len(stopped) > 0 {
 		return doctorResult{
 			Name: "Serviços", Status: statusFail,
 			Message: fmt.Sprintf("serviço instalado, mas parado: %s", strings.Join(stopped, ", ")),
-			Fix:     "Inicie o serviço: systemctl start focusguard (Linux) ou services.msc (Windows).",
+			Fix:     "Inicie o serviço: services.msc.",
 		}
 	}
 	return doctorResult{Name: "Serviços", Status: statusPass, Message: strings.Join(names, ", ") + " instalados e rodando"}

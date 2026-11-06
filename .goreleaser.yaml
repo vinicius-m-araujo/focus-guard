@@ -22,19 +22,6 @@ env:
   - CGO_ENABLED=0
 
 builds:
-  - id: cli-linux
-    main: ./cmd/focusguard
-    binary: focusguard
-    goos:
-      - linux
-    goarch:
-      - amd64
-      - arm64
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w
-
   - id: cli-windows
     main: ./cmd/focusguard
     binary: focusguard
@@ -47,19 +34,6 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-
-  - id: daemon-linux
-    main: ./cmd/focusguard-daemon
-    binary: focusguard-daemon
-    goos:
-      - linux
-    goarch:
-      - amd64
-      - arm64
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w -X main.daemonVersion={{ .Version }}
 
   - id: daemon-windows
     main: ./cmd/focusguard-daemon
@@ -74,19 +48,6 @@ builds:
     ldflags:
       - -s -w -X main.daemonVersion={{ .Version }}
 
-  - id: watchdog-linux
-    main: ./cmd/focusguard-watchdog
-    binary: focusguard-watchdog
-    goos:
-      - linux
-    goarch:
-      - amd64
-      - arm64
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w
-
   - id: watchdog-windows
     main: ./cmd/focusguard-watchdog
     binary: focusguard-watchdog
@@ -95,20 +56,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w
-
-  - id: tray-linux
-    main: ./cmd/focusguard-tray
-    binary: focusguard-tray
-    goos:
-      - linux
-    goarch:
-      - amd64
-    env:
-      - CGO_ENABLED=1
     flags:
       - -trimpath
     ldflags:
@@ -128,19 +75,6 @@ builds:
       - -trimpath
     ldflags:
       - -s -w -H windowsgui
-
-  - id: web-linux
-    main: ./cmd/focusguard-web
-    binary: focusguard-web
-    goos:
-      - linux
-    goarch:
-      - amd64
-      - arm64
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w
 
   - id: web-windows
     main: ./cmd/focusguard-web
@@ -171,33 +105,6 @@ archives:
         dst: install.txt
       - src: scripts/install-daemon.ps1
         dst: install-daemon.ps1
-
-  - id: linux
-    ids:
-      - cli-linux
-      - daemon-linux
-      - watchdog-linux
-      - tray-linux
-      - web-linux
-    formats:
-      - tar.gz
-    allow_different_binary_count: true
-    name_template: '{{ .ProjectName }}_{{ .Version }}_linux_{{ .Arch }}'
-    files:
-      - src: packaging/install.txt
-        dst: install.txt
-      - src: README.md
-      - src: CHANGELOG.md
-      - src: packaging/focusguard.png
-        dst: focusguard.png
-      - src: packaging/focusguard.ico
-        dst: focusguard.ico
-      - src: scripts/focusguard.service
-        dst: focusguard.service
-      - src: scripts/focusguard-tray.desktop
-        dst: focusguard-tray.desktop
-      - src: scripts/install-linux.sh
-        dst: install-linux.sh
 
 checksum:
   name_template: checksums.txt

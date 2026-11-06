@@ -1,15 +1,16 @@
-.PHONY: all build build-cli build-daemon build-web ui icon winres contract contract-check test vet hooks session-check clean install uninstall msi help fmt tidy android-test android-apk
+.PHONY: all build build-cli build-daemon build-web ui icon winres contract contract-check test vet hooks session-check clean install uninstall msi help fmt tidy
 
 GO       := go
 BIN_DIR  := bin
-DESTDIR  ?= /usr/local/bin
 
-UNAME_S  := $(shell uname -s 2>/dev/null || echo Windows)
 
 # No Windows, `go build -o` explícito NÃO acrescenta .exe — mas o CLI localiza
 # os binários irmãos pelo nome com extensão (ex.: focusguard-web.exe). Deriva a
 # extensão do alvo do Go (GOOS) para os builds ficarem corretos em ambos os SOs.
 GOOS := $(shell $(GO) env GOOS)
+ifneq ($(GOOS),windows)
+$(error FocusGuard desktop supports Windows only)
+endif
 ifeq ($(GOOS),windows)
 EXE := .exe
 else
@@ -25,7 +26,7 @@ build: icon build-cli build-daemon build-web
 
 # icon regenera o ícone multi-tamanho a partir do artwork
 # packaging/artwork/focusguard.png: o .ico Windows usado pelo go-winres
-# (metadados .exe), o .png Linux do atalho do Desktop e o .png 32px do tray
+# (metadados .exe), o .png de distribuição e o .png 32px do tray
 # (internal/system/tray/icon_source.png, mantido no pacote por causa do go:embed).
 icon:
 	$(GO) run ./cmd/focusguard-icon
@@ -94,14 +95,14 @@ session-check:
 
 # sync-rules espelha os arquivos GEMINI.md -> AGENT.md na raiz e subdiretórios
 sync-rules:
-	@for dir in . android cmd focusguard-ui internal scripts; do \
+	@for dir in . cmd focusguard-ui internal scripts; do \
 		cp "$$dir/GEMINI.md" "$$dir/AGENT.md"; \
 	done
 	@echo "✔ Arquivos GEMINI.md sincronizados para AGENT.md"
 
 # sync-rules-check valida se os arquivos AGENT.md e GEMINI.md estão 100% idênticos
 sync-rules-check:
-	@for dir in . android cmd focusguard-ui internal scripts; do \
+	@for dir in . cmd focusguard-ui internal scripts; do \
 		diff -u "$$dir/GEMINI.md" "$$dir/AGENT.md" || { echo "✖ Erro: $$dir/AGENT.md diverge de $$dir/GEMINI.md. Execute 'make sync-rules'."; exit 1; }; \
 	done
 	@echo "✔ Todos os arquivos GEMINI.md e AGENT.md estão em sincronia"
@@ -118,24 +119,12 @@ install:
 	$(GO) build -o $(CLI_BIN) ./cmd/focusguard
 	$(GO) build -o $(BIN_DIR)/$(DAEMON) ./cmd/focusguard-daemon
 	$(CLI_BIN) install
-ifneq ($(findstring Linux,$(UNAME_S)),)
-	cp $(CLI_BIN) $(DESTDIR)/focusguard
-	cp $(BIN_DIR)/$(DAEMON) $(DESTDIR)/$(DAEMON)
-	-systemctl restart focusguard 2>/dev/null || true
-	@echo "✔ Binarios copiados para $(DESTDIR)/"
-endif
 	@echo "✔ Instalacao concluida"
 
 uninstall:
 	@echo "=== Desinstalando FocusGuard ==="
 	$(GO) build -o $(CLI_BIN) ./cmd/focusguard
 	$(CLI_BIN) uninstall
-ifneq ($(findstring Linux,$(UNAME_S)),)
-	-systemctl stop focusguard 2>/dev/null || true
-	systemctl daemon-reload
-	rm -f $(DESTDIR)/focusguard $(DESTDIR)/$(DAEMON)
-	@echo "✔ Binarios removidos de $(DESTDIR)/"
-endif
 	@echo "✔ Desinstalacao concluida"
 
 test:
@@ -143,14 +132,6 @@ test:
 
 vet:
 	$(GO) vet ./...
-
-# android-test roda os testes unitários do app Android via Gradle wrapper
-android-test:
-	cd android && JAVA_HOME=/usr/lib/jvm/java-1.21.0-openjdk-amd64 ./gradlew testDebugUnitTest
-
-# android-apk compila os APKs (Debug e Release) do app Android
-android-apk:
-	cd android && JAVA_HOME=/usr/lib/jvm/java-1.21.0-openjdk-amd64 ./gradlew assembleDebug assembleRelease
 
 clean:
 	rm -rf $(BIN_DIR)
@@ -168,12 +149,10 @@ help:
 	@echo "  make build       Compila CLI, daemon e focusguard-web"
 	@echo "  make ui          Compila a interface web e embute no focusguard-web"
 	@echo "  make msi         Gera o instalador .msi do Windows (go-msi + WiX)"
-	@echo "  make install     Compila e instala (Windows: schtasks, Linux: systemd)"
+	@echo "  make install     Compila e instala (Windows: SCM)"
 	@echo "  make uninstall   Remove da inicializacao"
 	@echo "  make test        Executa todos os testes"
 	@echo "  make vet         Verifica com go vet"
-	@echo "  make android-test Executa testes unitarios do app Android"
-	@echo "  make android-apk  Compila os APKs Debug e Release do Android"
 	@echo "  make session-check  Falha se o resumo da sessão de hoje não existir"
 	@echo "  make sync-rules  Sincroniza GEMINI.md para AGENT.md"
 	@echo "  make sync-rules-check  Verifica paridade entre GEMINI.md e AGENT.md"
@@ -182,4 +161,3 @@ help:
 	@echo "  make tidy        go mod tidy"
 	@echo ""
 	@echo "Variaveis:"
-	@echo "  DESTDIR=$(DESTDIR)    Diretorio de instalacao dos binarios"

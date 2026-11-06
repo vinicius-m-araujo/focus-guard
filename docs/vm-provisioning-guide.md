@@ -1,3 +1,5 @@
+> **Histórico:** suporte desktop Linux descontinuado. Consulte [desenvolvimento Windows](development.md) para os procedimentos atuais.
+
 # Guia de Provisionamento da VM Ubuntu
 
 > **Objetivo:** preparar uma VM Ubuntu com desktop para validar as Etapas

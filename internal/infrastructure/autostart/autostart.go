@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 )
 
@@ -20,10 +19,6 @@ var execCommand = func(name string, args ...string) cmdRunner {
 
 var osMkdirAll = os.MkdirAll
 var osStat = os.Stat
-
-var systemdServiceDir = func() string {
-	return "/etc/systemd/system"
-}
 
 func Install(exePath string) error {
 	if exePath == "" {
@@ -43,34 +38,10 @@ func Uninstall() error {
 }
 
 func IsInstalled() (bool, error) {
-	if goos == "windows" {
-		return isInstalledWindows()
+	if goos != "windows" {
+		return false, fmt.Errorf("autostart: plataforma não suportada: %s", goos)
 	}
-	svcPath := filepath.Join(systemdServiceDir(), "focusguard.service")
-	if _, err := osStat(svcPath); err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-func InstallSvc(exePath string) error {
-	if exePath == "" {
-		return fmt.Errorf("autostart: caminho do executável não pode ser vazio")
-	}
-	if goos != "linux" {
-		return fmt.Errorf("autostart: instalação via systemd não é suportada em %s", goos)
-	}
-	return installSystemd(exePath)
-}
-
-func UninstallSvc() error {
-	if goos != "linux" {
-		return fmt.Errorf("autostart: desinstalação via systemd não é suportada em %s", goos)
-	}
-	return uninstallSystemd()
+	return isInstalledWindows()
 }
 
 func InstallWatchdog(exePath string) error {

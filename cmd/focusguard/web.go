@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"focusguard/internal/transport/httpapi"
@@ -72,15 +71,7 @@ func waitForWebServer(timeout time.Duration) bool {
 
 // openBrowser abre a URL no navegador padrão do sistema.
 func openBrowser(url string) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default:
-		cmd = exec.Command("xdg-open", url)
-	}
+	cmd := exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
 	_ = cmd.Start()
 }
 
@@ -136,7 +127,7 @@ func handleWebCommand() {
 	if !waitWebServerFn(5 * time.Second) {
 		fmt.Println("⚠ Servidor web iniciado, mas ainda não respondeu. Abrindo o navegador mesmo assim...")
 		fmt.Println("  Se a interface não abrir, o log de auditoria do web mostra o motivo:")
-		fmt.Println("    focusguard-web.log ao lado do executável, ou em %PROGRAMDATA%\\FocusGuard\\ (Windows) / /var/lib/focusguard/ (Linux)")
+		fmt.Println("    focusguard-web.log ao lado do executável, ou em %PROGRAMDATA%\\FocusGuard\\")
 	}
 	openBrowserFn(webURL)
 	fmt.Printf("✔ Interface web: %s\n", webURL)

@@ -1,12 +1,10 @@
 # Release — FocusGuard
 
-**SemVer** versioning (current: **v0.16.0**). The changelog follows **Keep a
+**SemVer** versioning. The changelog follows **Keep a
 Changelog**, with dated sections and emoji categories (e.g. `### 🛡 ...`).
 
-> F5 do ui-plan (2026-08-06): a release é **conjunta** — todos os arquivos
-> Linux já carregam o `focusguard-web` (build no hook + tar.gz) e o
-> `install-linux.sh` cria o grupo `focusguard` para o acesso ao socket sem
-> sudo.
+> Desktop exclusivo para Windows. Execute `scripts/validate-windows.ps1`
+> antes da release.
 
 ## Release checklist
 
@@ -26,25 +24,16 @@ Changelog**, with dated sections and emoji categories (e.g. `### 🛡 ...`).
    `go-winres make` for daemon/CLI/tray/watchdog, and builds the **web UI** with
    `npm ci && npm run build` — requires Node.js on the runner). The release
    is published **automatically** on GitHub with the per-platform archives.
-   O job `windows-msi` compila o instalador MSI (`focusguard-<v>-amd64.msi`) e
-   o job `android-release` compila e assina os APKs nativos do Android
-   (`focusguard-<v>.apk` e `focusguard-<v>-debug.apk`), anexando-os à release.
+   O job `windows-msi` compila o instalador MSI (`focusguard-<v>-amd64.msi`), anexando-o à release.
 
 ## What the release contains
 
-- **Android** (anexados à release pelo job `android-release`):
-  `focusguard-<v>.apk` (APK Release assinado) e
-  `focusguard-<v>-debug.apk` (APK Debug para testes e diagnósticos).
 - **Windows** (`focusguard_<v>_windows_<arch>.zip`): `focusguard.exe`,
   `focusguard-daemon.exe`, `focusguard-watchdog.exe`, `focusguard-tray.exe`,
   `focusguard-web.exe` + `install-daemon.ps1` + `install.txt`.
 - **Instaladores MSI** (anexados à release pelo job `windows-msi`):
   `focusguard-<v>-amd64.msi` (edição desktop). Gerado via
   `make msi VERSION=<v>` — ver `scripts/build-msi.sh`.
-- **Linux** (`focusguard_<v>_linux_<arch>.tar.gz`): binaries (incl.
-  `focusguard-web`) + `focusguard.service` + `install-linux.sh` +
-  `focusguard-tray.desktop` + README/CHANGELOG + `focusguard.ico`/`.png` +
-  `install.txt`.
 
 ## Details
 

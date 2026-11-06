@@ -1,3 +1,5 @@
+> **Histórico:** suporte desktop Linux descontinuado. Consulte [desenvolvimento Windows](development.md) para os procedimentos atuais.
+
 # Resumo Executivo — Validação Linux
 
 > **Consulta rápida** para executar à noite na Linux real.

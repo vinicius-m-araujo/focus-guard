@@ -218,28 +218,18 @@ var killDaemon = killDaemonImpl
 
 // killDaemonImpl é a implementação real de killDaemon.
 func killDaemonImpl() {
-	switch runtime.GOOS {
-	case "windows":
-		cmd := exec.Command("taskkill", "/f", "/im", daemonProc)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			outStr := strings.ToLower(string(out))
-			if !strings.Contains(outStr, "não está em execução") &&
-				!strings.Contains(outStr, "not running") &&
-				!strings.Contains(outStr, "no tasks") &&
-				!strings.Contains(outStr, "could not find") {
-				log.Printf("[FocusGuard Watchdog] Erro ao matar daemon: %v (%s)", err, strings.TrimSpace(string(out)))
-				return
-			}
-		}
-		log.Println("[FocusGuard Watchdog] Daemon finalizado. Aguardando SCM reiniciar...")
-
-	default:
-		cmd := exec.Command("pkill", "-9", "focusguard-daemon")
-		out, _ := cmd.CombinedOutput()
-		if len(out) > 0 {
-			log.Printf("[FocusGuard Watchdog] Saída do pkill: %s", strings.TrimSpace(string(out)))
+	cmd := exec.Command("taskkill", "/f", "/im", daemonProc)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		outStr := strings.ToLower(string(out))
+		if !strings.Contains(outStr, "não está em execução") &&
+			!strings.Contains(outStr, "not running") &&
+			!strings.Contains(outStr, "no tasks") &&
+			!strings.Contains(outStr, "could not find") {
+			log.Printf("[FocusGuard Watchdog] Erro ao matar daemon: %v (%s)", err, strings.TrimSpace(string(out)))
+			return
 		}
 	}
+	log.Println("[FocusGuard Watchdog] Daemon finalizado. Aguardando SCM reiniciar...")
 
 	waitForDaemon()
 }

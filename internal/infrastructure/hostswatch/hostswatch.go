@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -102,10 +101,7 @@ func (w *HostsWatcher) isSelfWrite() bool {
 }
 
 func New(enf Enforcer, sched Scheduler) *HostsWatcher {
-	path := "/etc/hosts"
-	if runtime.GOOS == "windows" {
-		path = filepath.Join(os.Getenv("SystemRoot"), "System32", "drivers", "etc", "hosts")
-	}
+	path := filepath.Join(os.Getenv("SystemRoot"), "System32", "drivers", "etc", "hosts")
 	return &HostsWatcher{
 		HostsPath: path,
 		enf:       enf,

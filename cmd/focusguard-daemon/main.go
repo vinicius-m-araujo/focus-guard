@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -40,13 +38,15 @@ import (
 	"focusguard/internal/infrastructure/tlsca"
 	"focusguard/internal/infrastructure/update"
 	"focusguard/internal/system/daemon"
-	"focusguard/internal/system/watchdog"
 	"focusguard/internal/transport/eventhub"
 	"focusguard/internal/transport/ipc"
 	"focusguard/internal/transport/metrics"
 )
 
 var daemonVersion = "0.0.0-dev"
+
+// Keep privileged OS enforcement injectable so lifecycle tests stay hermetic.
+var newEnforcer = enforcer.NewEnforcer
 
 const (
 	updateOwner = "ViniciusMoraisAraujo"
@@ -71,7 +71,6 @@ func clearUpdateInProgress(installDir string) { update.ClearInProgress(installDi
 // enough to never matter (a no-op ListBlocks when no rule is due).
 var scheduleCheckInterval = 30 * time.Second
 
-var goos = runtime.GOOS
 var newHostswatch = hostswatch.New
 var newStatewatch = statewatch.New
 
@@ -571,10 +570,7 @@ func getStateFilePath() string {
 	if testStateFilePath != "" {
 		return testStateFilePath
 	}
-	if goos == "windows" {
-		return filepath.Join(os.Getenv("PROGRAMDATA"), "FocusGuard", "state.json")
-	}
-	return "/var/lib/focusguard/state.json"
+	return filepath.Join(os.Getenv("PROGRAMDATA"), "FocusGuard", "state.json")
 }
 
 func startHostswatch(enf hostswatch.Enforcer, sched hostswatch.Scheduler) *hostswatch.HostsWatcher {
@@ -769,18 +765,6 @@ func startPeriodicUpdateCheck(server *ipc.Server, interval time.Duration) func()
 	return func() { once.Do(func() { close(stop) }) }
 }
 
-func getWatchdogSec() int {
-	usecStr := os.Getenv("WATCHDOG_USEC")
-	if usecStr == "" {
-		return 0
-	}
-	usec, err := strconv.Atoi(usecStr)
-	if err != nil || usec <= 0 {
-		return 0
-	}
-	return usec / 1_000_000
-}
-
 func main() {
 	stopLog := setupLogging()
 	defer stopLog()
@@ -881,7 +865,7 @@ func runDaemon() bool {
 		log.Printf("[FocusGuard Daemon] LoadAndHeal: %v", err)
 	}
 
-	enf := enforcer.NewEnforcer()
+	enf := newEnforcer()
 	sched := scheduler.NewScheduler(st, enf)
 
 	// Event hub (Fase 7): o daemon publica mudanças de estado coarse para o
@@ -941,10 +925,6 @@ func runDaemon() bool {
 	// (startPeriodicIPRefresh); o lifecycle o encerra no shutdown — sem isso a
 	// goroutine vazava (bug-hunt Etapa 4).
 	components = append(components, daemon.StopOnly(sched.Stop))
-
-	watchdogSec := getWatchdogSec()
-	wd := watchdog.New(sched, watchdogSec)
-	go wd.Start()
 
 	// Worker periódico do Clock Guard (mesmo guard do boot — o dedup do
 	// tamper-log e a re-ancoragem continuam entre ciclos): um salto além da

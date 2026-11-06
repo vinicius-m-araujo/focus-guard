@@ -1,3 +1,5 @@
+> **Histórico:** suporte desktop Linux descontinuado. Consulte [desenvolvimento Windows](development.md) para os procedimentos atuais.
+
 # Plano — Validação completa no Linux
 
 > **Status:** 🟢 **EM EXECUÇÃO (2026-08-13)** — **Etapa 0 CONCLUÍDA no CI** (run

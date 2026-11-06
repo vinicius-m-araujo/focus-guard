@@ -234,55 +234,6 @@ func groupIPsByFamily(ips []string) (v4, v6 []string) {
 // the cache immediately, so the TTL only delays reflecting external changes.
 const statusCacheTTL = 15 * time.Second
 
-// icmpPortUnreachableType returns the --reject-with type of the
-// protocol-agnostic REJECT for the address family of mask: ICMPv4
-// icmp-port-unreachable on IPv4 (iptables) and ICMPv6 icmp6-port-unreachable
-// on IPv6 (ip6tables).
-func icmpPortUnreachableType(mask string) string {
-	if mask == "/128" {
-		return "icmp6-port-unreachable"
-	}
-	return "icmp-port-unreachable"
-}
-
-// buildRestoreScript renders the stdin payload for iptables-restore/ip6tables
-// --noflush: a *filter header, two -A OUTPUT REJECT lines per IP (with the
-// family mask, matching the iptables-save format) and a COMMIT footer.
-//
-// Each IP gets a TCP rule rejecting with tcp-reset and a protocol-agnostic
-// rule rejecting everything else with icmp-port-unreachable. tcp-reset is only
-// accepted by iptables on rules that match TCP explicitly, and it only covers
-// TCP — the companion rule is what blocks UDP/QUIC (HTTP/3), otherwise a
-// browser using DoH + QUIC would keep reaching the site over UDP.
-//
-// REJECT --reject-with tcp-reset is used instead of DROP so blocked sites
-// fail fast with an RST instead of hanging on client-side timeouts — and the
-// RST sent on the next packet of an existing flow tears down Keep-Alive
-// connections at the packet level (ss -K does the same in the kernel).
-//
-// Chain policy lines (e.g. ":OUTPUT ACCEPT [0:0]") are intentionally NOT
-// emitted: under --noflush they would reset the chain policy/counters, which
-// could clobber a hardened OUTPUT DROP policy. Omitting them appends rules to
-// the existing built-in chain without touching its policy.
-func buildRestoreScript(ips []string, mask string) string {
-	var b strings.Builder
-	b.WriteString("*filter\n")
-	for _, ip := range ips {
-		b.WriteString("-A OUTPUT -d ")
-		b.WriteString(ip)
-		b.WriteString(mask)
-		b.WriteString(" -p tcp -j REJECT --reject-with tcp-reset\n")
-		b.WriteString("-A OUTPUT -d ")
-		b.WriteString(ip)
-		b.WriteString(mask)
-		b.WriteString(" -j REJECT --reject-with ")
-		b.WriteString(icmpPortUnreachableType(mask))
-		b.WriteString("\n")
-	}
-	b.WriteString("COMMIT\n")
-	return b.String()
-}
-
 // buildNetshAddScript renders the script fed to a single netsh process via
 // stdin: one full-context add rule line per IP (netsh scripting needs the
 // advfirewall context on every line) followed by exit. Rule names normalize

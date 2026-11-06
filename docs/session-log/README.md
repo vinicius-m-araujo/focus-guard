@@ -78,6 +78,8 @@ AGENT.md §5).
 
 Ordem cronológica, o mais recente no topo:
 
+- [2026-11-03](2026-11-03.md) — Desktop exclusivo Windows, CI e validador PowerShell, isolamento dos testes e auditorias de segurança.
+
 - [2026-09-05](2026-09-05.md) — FocusGuard Android (Etapas 1 a 6): arquitetura nativa com TDD, serviços de sistema, presets, tela interceptora, Pomodoro e CI/CD para APKs.
 - [2026-09-04](2026-09-04.md) — Sincronização com origin/main (v0.22.0), alinhamento de escopo do FocusGuard Android (/grill-me) e inicialização da Etapa 1 em /android com AGENT.md.
 - [2026-08-31](2026-08-31.md) — Remoção do DNS Sinkhole ("Rei da Rede"), simplificação do backend, IPC, CLI e UI, unificação do instalador Desktop e bump para v0.22.0.

@@ -6,18 +6,14 @@
 
 ## Purpose
 
-Scripts for **installation** (Windows and Linux), **MSI package building**, systemd
-unit configuration, and validation utilities. Distributed alongside releases
-(`install-daemon.ps1`, `install-linux.sh`, `focusguard.service`, `focusguard-tray.desktop`)
+Scripts for Windows installation, MSI package building, and validation. Distributed alongside releases
+(`install-daemon.ps1`)
 and executed within CI (`.github/workflows/release.yml`, `.github/workflows/test.yml`).
 
 | File | Purpose |
 |---|---|
 | `build-msi.sh` | Generates `focusguard[-server]-<v>-<arch>.msi` via go-msi + WiX; supports `desktop` (default) and `server` profiles |
 | `install-daemon.ps1` | Windows installer: copies to Program Files, creates SCM service, desktop shortcut, tray, and watchdog |
-| `install-linux.sh` | Linux installer: `/opt/focusguard`, systemd service, XDG autostart, socket permissions |
-| `focusguard.service` | Systemd service unit template (`ExecStart` configured by `install-linux.sh`) |
-| `focusguard-tray.desktop` | Template for Linux XDG desktop autostart |
 | `msi/` | WiX configuration (`wix.json`, `wix-server.json`, and `product.wxs`) |
 | `../packaging/server.role` | Marker file for Server edition installations (enables headless sinkhole on first boot) |
 | `verifyicon/` | Verification tool ensuring embedded executable icon matches `packaging/focusguard.ico` |
@@ -49,7 +45,7 @@ and executed within CI (`.github/workflows/release.yml`, `.github/workflows/test
 
 - Syntax verification:
   ```bash
-  bash -n scripts/build-msi.sh scripts/install-linux.sh scripts/check-session-log.sh
+  bash -n scripts/build-msi.sh scripts/check-session-log.sh
   ```
 - PowerShell syntax & status check:
   ```bash

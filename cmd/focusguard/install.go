@@ -25,26 +25,6 @@ func daemonExePath() string {
 }
 
 func handleInstallCommand() {
-	if runtime.GOOS == "linux" {
-		path := daemonExePath()
-		if path == "" {
-			fmt.Println("Erro: Não foi possível determinar o caminho do daemon.")
-			osExit(1)
-		}
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			fmt.Printf("Erro: Daemon não encontrado em %s\n", path)
-			fmt.Println("Compile o daemon primeiro: go build ./cmd/focusguard-daemon")
-			osExit(1)
-		}
-		if err := autostart.InstallSvc(path); err != nil {
-			fmt.Printf("Falha ao instalar: %v\n", err)
-			osExit(1)
-		}
-		fmt.Printf("✔ Daemon instalado como serviço de inicialização.\n")
-		fmt.Printf("  Binário: %s\n", path)
-		fmt.Printf("  Iniciará automaticamente no próximo login.\n")
-		return
-	}
 
 	// Windows: instala sempre em %ProgramFiles%\FocusGuard (Sistema / Todos os
 	// Usuários) e cria um atalho na área de trabalho pública.
@@ -120,15 +100,6 @@ func handleUninstallCommand() {
 	// ficaria órfã na máquina, capaz de validar sites por anos.
 	removeTrustedCAIfPresent()
 
-	if runtime.GOOS == "linux" {
-		if err := autostart.UninstallSvc(); err != nil {
-			fmt.Printf("Falha ao desinstalar: %v\n", err)
-			osExit(1)
-		}
-		fmt.Println("✔ Daemon removido da inicialização automática.")
-		return
-	}
-
 	if err := autostart.Uninstall(); err != nil {
 		fmt.Printf("Falha ao desinstalar: %v\n", err)
 		osExit(1)
@@ -183,7 +154,7 @@ func watchdogExePath() string {
 
 func handleInstallWatchdogCommand() {
 	if runtime.GOOS != "windows" {
-		fmt.Println("Watchdog externo é exclusivo do Windows (Linux usa systemd watchdog).")
+		fmt.Println("Watchdog externo é exclusivo do Windows.")
 		return
 	}
 

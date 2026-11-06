@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/windows"
+
 	"focusguard/internal/domain/apps"
 	"focusguard/internal/domain/policy"
 	"focusguard/internal/domain/pomodoro"
@@ -263,10 +265,6 @@ func TestRunDaemon_StatewatchIntegration(t *testing.T) {
 	setupDaemonTestEnv(t)
 	stubProbeDaemonAlive(t, false)
 
-	origGoos := goos
-	goos = "linux"
-	defer func() { goos = origGoos }()
-
 	var statewatchStarted bool
 
 	origNewHostswatch := newHostswatch
@@ -319,10 +317,6 @@ func TestRunDaemon_StatewatchIntegration(t *testing.T) {
 func TestRunDaemon_StatewatchReconcilerIsScheduler(t *testing.T) {
 	setupDaemonTestEnv(t)
 	stubProbeDaemonAlive(t, false)
-
-	origGoos := goos
-	goos = "linux"
-	defer func() { goos = origGoos }()
 
 	var capturedRec statewatch.Reconciler
 
@@ -411,9 +405,6 @@ func TestVersionInfo_GoWinresFormat(t *testing.T) {
 }
 
 func TestGetStateFilePath_Windows(t *testing.T) {
-	orig := goos
-	goos = "windows"
-	defer func() { goos = orig }()
 
 	t.Setenv("PROGRAMDATA", `C:\ProgramData`)
 	path := getStateFilePath()
@@ -428,9 +419,6 @@ func TestGetStateFilePath_Windows(t *testing.T) {
 }
 
 func TestGetStateFilePath_Windows_CustomProgramData(t *testing.T) {
-	orig := goos
-	goos = "windows"
-	defer func() { goos = orig }()
 
 	t.Setenv("PROGRAMDATA", `D:\AppData`)
 	path := getStateFilePath()
@@ -447,9 +435,6 @@ func TestGetStateFilePath_Windows_CustomProgramData(t *testing.T) {
 }
 
 func TestGetStateFilePath_Windows_EmptyProgramData(t *testing.T) {
-	orig := goos
-	goos = "windows"
-	defer func() { goos = orig }()
 
 	t.Setenv("PROGRAMDATA", "")
 	path := getStateFilePath()
@@ -459,49 +444,7 @@ func TestGetStateFilePath_Windows_EmptyProgramData(t *testing.T) {
 	}
 }
 
-func TestGetStateFilePath_Linux(t *testing.T) {
-	orig := goos
-	goos = "linux"
-	defer func() { goos = orig }()
-
-	path := getStateFilePath()
-	if path != "/var/lib/focusguard/state.json" {
-		t.Errorf("expected /var/lib/focusguard/state.json, got %q", path)
-	}
-}
-
-func TestGetStateFilePath_MacOS(t *testing.T) {
-	orig := goos
-	goos = "darwin"
-	defer func() { goos = orig }()
-
-	path := getStateFilePath()
-	expected := "/var/lib/focusguard/state.json"
-	if path != expected {
-		t.Errorf("expected %q for darwin, got %q", expected, path)
-	}
-}
-
-func TestGetStateFilePath_DefaultPathOnNonWindows(t *testing.T) {
-	for _, platform := range []string{"linux", "darwin", "freebsd", "openbsd", "android"} {
-		t.Run(platform, func(t *testing.T) {
-			orig := goos
-			goos = platform
-			defer func() { goos = orig }()
-
-			path := getStateFilePath()
-			expected := "/var/lib/focusguard/state.json"
-			if path != expected {
-				t.Errorf("on %q: expected %q, got %q", platform, expected, path)
-			}
-		})
-	}
-}
-
 func TestGetStateFilePath_Windows_ForwardSlash(t *testing.T) {
-	orig := goos
-	goos = "windows"
-	defer func() { goos = orig }()
 
 	t.Setenv("PROGRAMDATA", "C:/ProgramData")
 	path := getStateFilePath()
@@ -517,10 +460,6 @@ func TestGetStateFilePath_Windows_ForwardSlash(t *testing.T) {
 func TestRunDaemon_ServiceStop_NoActiveBlocks(t *testing.T) {
 	setupDaemonTestEnv(t)
 	stubProbeDaemonAlive(t, false)
-
-	origGoos := goos
-	goos = "linux"
-	defer func() { goos = origGoos }()
 
 	origNewHostswatch := newHostswatch
 	newHostswatch = func(enf hostswatch.Enforcer, sched hostswatch.Scheduler) *hostswatch.HostsWatcher {
@@ -565,88 +504,9 @@ func TestRunDaemon_ServiceStop_NoActiveBlocks(t *testing.T) {
 	}
 }
 
-func TestRunDaemon_ServiceStop_WithActiveBlocks(t *testing.T) {
-	if os.Geteuid() != 0 {
-		t.Skip("requires root: active blocks reconciliation calls Linux enforcer")
-	}
-	setupDaemonTestEnv(t)
-	stubProbeDaemonAlive(t, false)
-
-	origGoos := goos
-
-	goos = "linux"
-	defer func() { goos = origGoos }()
-
-	statePath := testStateFilePath
-	stateDir := filepath.Dir(statePath)
-	if err := os.MkdirAll(stateDir, 0755); err != nil {
-		t.Fatalf("failed to create state dir: %v", err)
-	}
-
-	now := time.Now()
-	stateContent := fmt.Sprintf(`{
-		"version": 1,
-		"blocks": {
-			"blocked.com": {
-				"domain": "blocked.com",
-				"started_at": %q,
-				"expires_at": %q,
-				"resolved_ips": ["127.0.0.1"]
-			}
-		}
-	}`, now.Format(time.RFC3339), now.Add(24*time.Hour).Format(time.RFC3339))
-
-	if err := os.WriteFile(statePath, []byte(stateContent), 0644); err != nil {
-		t.Fatalf("failed to create state file: %v", err)
-	}
-
-	defer os.RemoveAll(stateDir)
-
-	origNewHostswatch := newHostswatch
-	newHostswatch = func(enf hostswatch.Enforcer, sched hostswatch.Scheduler) *hostswatch.HostsWatcher {
-		return nil
-	}
-	defer func() { newHostswatch = origNewHostswatch }()
-
-	origNewStatewatch := newStatewatch
-	newStatewatch = func(rec statewatch.Reconciler, statePath string) *statewatch.StateWatcher {
-		return statewatch.New(rec, statePath)
-	}
-	defer func() { newStatewatch = origNewStatewatch }()
-
-	// Process Guard desativado nos testes de integração: um guard ativo
-	// encerraria processos reais (steam/discord) durante a suíte.
-	origNewProcessGuard := newProcessGuard
-	newProcessGuard = func(denylist []string) processGuardStarter { return nil }
-	defer func() { newProcessGuard = origNewProcessGuard }()
-
-	origServiceStopCh := serviceStopCh
-	newStopCh := make(chan struct{})
-	serviceStopCh = newStopCh
-	defer func() { serviceStopCh = origServiceStopCh }()
-
-	done := make(chan bool, 1)
-	go func() {
-		result := runDaemon()
-		done <- result
-	}()
-
-	time.Sleep(100 * time.Millisecond)
-	close(newStopCh)
-
-	select {
-	case result := <-done:
-		t.Fatalf("daemon should NOT stop with active blocks, but it returned %v", result)
-	case <-time.After(1 * time.Second):
-	}
-}
-
 func TestRunDaemon_RestartOnFalseReturn(t *testing.T) {
 	setupDaemonTestEnv(t)
-	origGoos := goos
 	stubProbeDaemonAlive(t, false)
-	goos = "linux"
-	defer func() { goos = origGoos }()
 
 	origNewHostswatch := newHostswatch
 	newHostswatch = func(enf hostswatch.Enforcer, sched hostswatch.Scheduler) *hostswatch.HostsWatcher {
@@ -701,10 +561,7 @@ func TestRunDaemon_RestartOnFalseReturn(t *testing.T) {
 
 func TestDaemonDoneCh_NotClosedInRunDaemon(t *testing.T) {
 	setupDaemonTestEnv(t)
-	origGoos := goos
 	stubProbeDaemonAlive(t, false)
-	goos = "linux"
-	defer func() { goos = origGoos }()
 
 	origNewHostswatch := newHostswatch
 	newHostswatch = func(enf hostswatch.Enforcer, sched hostswatch.Scheduler) *hostswatch.HostsWatcher {
@@ -749,55 +606,6 @@ func TestDaemonDoneCh_NotClosedInRunDaemon(t *testing.T) {
 	case <-freshDaemonDoneCh:
 		t.Error("daemonDoneCh was closed by runDaemon — only the service handler should close it")
 	default:
-	}
-}
-
-func TestGetWatchdog_Empty(t *testing.T) {
-	t.Setenv("WATCHDOG_USEC", "")
-	if got := getWatchdogSec(); got != 0 {
-		t.Errorf("expected 0 for empty env, got %d", got)
-	}
-}
-
-func TestGetWatchdog_20s(t *testing.T) {
-	t.Setenv("WATCHDOG_USEC", "20000000")
-	if got := getWatchdogSec(); got != 20 {
-		t.Errorf("expected 20 for 20000000 usec, got %d", got)
-	}
-}
-
-func TestGetWatchdog_1s(t *testing.T) {
-	t.Setenv("WATCHDOG_USEC", "1000000")
-	if got := getWatchdogSec(); got != 1 {
-		t.Errorf("expected 1 for 1000000 usec, got %d", got)
-	}
-}
-
-func TestGetWatchdog_RoundDown(t *testing.T) {
-	t.Setenv("WATCHDOG_USEC", "1500000")
-	if got := getWatchdogSec(); got != 1 {
-		t.Errorf("expected 1 for 1500000 usec (integer division), got %d", got)
-	}
-}
-
-func TestGetWatchdog_Zero(t *testing.T) {
-	t.Setenv("WATCHDOG_USEC", "0")
-	if got := getWatchdogSec(); got != 0 {
-		t.Errorf("expected 0 for 0 usec, got %d", got)
-	}
-}
-
-func TestGetWatchdog_Negative(t *testing.T) {
-	t.Setenv("WATCHDOG_USEC", "-1000000")
-	if got := getWatchdogSec(); got != 0 {
-		t.Errorf("expected 0 for negative value, got %d", got)
-	}
-}
-
-func TestGetWatchdog_Invalid(t *testing.T) {
-	t.Setenv("WATCHDOG_USEC", "not-a-number")
-	if got := getWatchdogSec(); got != 0 {
-		t.Errorf("expected 0 for invalid text, got %d", got)
 	}
 }
 
@@ -1141,10 +949,7 @@ func TestDaemonUpdater_Check_Apply_StopsGuards(t *testing.T) {
 // itself is always present.
 func TestNewDaemonUpdater_WiresExistingSiblings(t *testing.T) {
 	dir := t.TempDir()
-	ext := ""
-	if goos == "windows" {
-		ext = ".exe"
-	}
+	ext := ".exe"
 	for _, n := range []string{"focusguard", "focusguard-daemon", "focusguard-watchdog"} {
 		if err := os.WriteFile(filepath.Join(dir, n+ext), []byte("bin"), 0755); err != nil {
 			t.Fatalf("write fake binary: %v", err)
@@ -1718,8 +1523,22 @@ func waitForCalls(t *testing.T, counter *int32, want int, timeout time.Duration)
 // setupDaemonTestEnv configura um ambiente de testes hermético com caminhos
 // de estado e socket isolados em t.TempDir(), permitindo que a suíte execute
 // sem privilégios de root.
+func TestSetupDaemonTestEnv_IsolatesWindowsIPC(t *testing.T) {
+	setupDaemonTestEnv(t)
+	if ipc.TestDialAddr == "" {
+		t.Fatal("daemon tests must use an isolated TCP endpoint instead of the production port")
+	}
+	if _, ok := newEnforcer().(*fakeDaemonEnforcer); !ok {
+		t.Fatal("daemon tests must use a fake enforcer instead of the real Windows firewall")
+	}
+}
+
 func setupDaemonTestEnv(t *testing.T) {
 	t.Helper()
+	setDaemonTestEndpoint(t)
+	origEnforcer := newEnforcer
+	newEnforcer = func() enforcer.Enforcer { return &fakeDaemonEnforcer{} }
+	t.Cleanup(func() { newEnforcer = origEnforcer })
 	dir := t.TempDir()
 	origState := testStateFilePath
 	testStateFilePath = filepath.Join(dir, "state.json")
@@ -1891,13 +1710,28 @@ func TestRealChain_ExternalTamperRestoresDisk(t *testing.T) {
 	}
 }
 
+// Windows can briefly deny delete/rename while the watcher reads its hash.
+// Retry only sharing/lock violations; other errors must still fail immediately.
+func retrySharedFileChange(t *testing.T, change func() error) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		err := change()
+		if err == nil {
+			return
+		}
+		if (!errors.Is(err, windows.ERROR_SHARING_VIOLATION) && !errors.Is(err, windows.ERROR_LOCK_VIOLATION)) || time.Now().After(deadline) {
+			t.Fatalf("file change: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestRealChain_ExternalDeleteRecreatesFile(t *testing.T) {
 	_, sched, _, statePath := newRealWatcherChain(t)
 
 	// Deleting the disk mirror must be detected and the file recreated from RAM.
-	if err := os.Remove(statePath); err != nil {
-		t.Fatalf("os.Remove: %v", err)
-	}
+	retrySharedFileChange(t, func() error { return os.Remove(statePath) })
 
 	waitForFileContains(t, statePath, "example.com", 5*time.Second)
 
@@ -1914,9 +1748,7 @@ func TestRealChain_ExternalRenameRecreatesFile(t *testing.T) {
 	_, sched, _, statePath := newRealWatcherChain(t)
 
 	// Renaming the state file away must be detected and the file recreated.
-	if err := os.Rename(statePath, statePath+".bak"); err != nil {
-		t.Fatalf("os.Rename: %v", err)
-	}
+	retrySharedFileChange(t, func() error { return os.Rename(statePath, statePath+".bak") })
 
 	waitForFileContains(t, statePath, "example.com", 5*time.Second)
 

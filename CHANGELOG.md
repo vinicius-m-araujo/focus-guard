@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não publicado]
 
+## [0.24.0] - 2026-11-06
+
+### 🛡️ Plataforma Windows Exclusiva & Remoção de Linux e Android
+
+- **Foco Exclusivo em Windows** — remoção completa de implementações, instaladores shell e artefatos de release Linux.
+- **Remoção do Aplicativo Android** — remoção completa do aplicativo nativo em `android/` e de workflows de testes e release de APKs.
+- **CI/CD Nativo Windows** — workflows de teste e validação executados no `windows-latest`, com build ARM64 e detector de corrida de dados via MinGW-w64.
+- **Validador Automatizado** — script `scripts/validate-windows.ps1` para conferência de integridade de regras, contratos, testes frontend e builds executáveis.
+- **Estabilidade no Daemon e IPC** — correções em testes do daemon com isolamento de portas, mocks herméticos e eliminação de concorrência de arquivos.
+
 ## [0.23.1] - 2026-09-06
 
 ### 🐛 Correções & CI/CD

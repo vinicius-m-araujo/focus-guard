@@ -415,61 +415,6 @@ func TestGroupIPsByFamily(t *testing.T) {
 	}
 }
 
-// TestBuildRestoreScript verifies the iptables-restore --noflush stdin format:
-// a *filter header, two -A lines per IP (TCP tcp-reset + protocol-agnostic
-// icmp-port-unreachable for UDP/QUIC) with the family mask, and a COMMIT.
-func TestBuildRestoreScript(t *testing.T) {
-	tests := []struct {
-		name string
-		ips  []string
-		mask string
-		want string
-	}{
-		{
-			"v4",
-			[]string{"1.1.1.1", "8.8.8.8"},
-			"/32",
-			"*filter\n" +
-				"-A OUTPUT -d 1.1.1.1/32 -p tcp -j REJECT --reject-with tcp-reset\n" +
-				"-A OUTPUT -d 1.1.1.1/32 -j REJECT --reject-with icmp-port-unreachable\n" +
-				"-A OUTPUT -d 8.8.8.8/32 -p tcp -j REJECT --reject-with tcp-reset\n" +
-				"-A OUTPUT -d 8.8.8.8/32 -j REJECT --reject-with icmp-port-unreachable\n" +
-				"COMMIT\n",
-		},
-		{
-			// Regressão da Etapa 6 real (Ubuntu 26.04, ip6tables nft): o tipo
-			// protocol-agnostic do v6 é icmp6-port-unreachable (ICMPv6) — o nome
-			// ICMPv4 é rejeitado pelo backend nft ("unknown reject type").
-			"v6",
-			[]string{"2001:db8::1"},
-			"/128",
-			"*filter\n" +
-				"-A OUTPUT -d 2001:db8::1/128 -p tcp -j REJECT --reject-with tcp-reset\n" +
-				"-A OUTPUT -d 2001:db8::1/128 -j REJECT --reject-with icmp6-port-unreachable\n" +
-				"COMMIT\n",
-		},
-		{
-			"empty",
-			nil,
-			"/32",
-			"*filter\nCOMMIT\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := buildRestoreScript(tt.ips, tt.mask)
-			if got != tt.want {
-				t.Errorf("buildRestoreScript(%v, %q) = %q, want %q", tt.ips, tt.mask, got, tt.want)
-			}
-		})
-	}
-}
-
-// TestSplitHostsLines verifies the shared bytes-based hosts line splitter:
-// it must match the previous bufio.Scanner semantics (drop a trailing empty
-// element from a final \n) while operating on []byte to reduce GC pressure in
-// polling paths.
 func TestSplitHostsLines(t *testing.T) {
 	tests := []struct {
 		name string

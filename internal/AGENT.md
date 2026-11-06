@@ -38,10 +38,10 @@ Packages are divided into 4 architectural layers (`docs/reorg-plan.md`):
 ### 2. Infrastructure (`infrastructure/` — OS I/O)
 | Package | Responsibility |
 |---|---|
-| `autostart` | Service installation (SCM / systemd), tray autostart, desktop shortcuts |
+| `autostart` | Windows SCM service installation, tray autostart, desktop shortcuts |
 | `dns` | Domain handlers for DNS sinkhole management |
 | `dnsserver` | Embedded DNS sinkhole (port 53, `miekg/dns`) with upstream forwarding |
-| `enforcer` | OS block enforcer: hosts file + firewall (`iptables`/`ip6tables`/`nft`/`netsh`) |
+| `enforcer` | OS block enforcer: hosts file + firewall (`netsh`) |
 | `filelog` | Shared append & rotating file logging next to binary executables |
 | `fsutil` | Cryptographic SHA-256 file hashing for anti-tamper loop prevention |
 | `hostswatch` | Hosts file monitor: fsnotify + hash anti-loop; detects and reverts changes |
@@ -57,7 +57,7 @@ Packages are divided into 4 architectural layers (`docs/reorg-plan.md`):
 |---|---|
 | `eventhub` | In-process pub/sub event bus (ring buffer + long-polling) |
 | `httpapi` | Web UI HTTP server: IPC proxy + static assets + localhost security guards |
-| `ipc` | Unix socket protocol, client `SendWithTimeout`, server action registry |
+| `ipc` | Windows loopback TCP protocol, client `SendWithTimeout`, server action registry |
 | `ipcerr` | Canonical IPC error codes (`Error`) matching `ipc/codes.go` |
 | `metrics` | Per-action latency registry (ring buffer + percentiles) |
 
@@ -66,7 +66,7 @@ Packages are divided into 4 architectural layers (`docs/reorg-plan.md`):
 |---|---|
 | `daemon` | Daemon lifecycle: `Run(ctx) error` and graceful ordered shutdown |
 | `tray` | Systray icon controller: menus, dynamic tooltips, non-blocking IPC |
-| `watchdog` | systemd `NOTIFY_SOCKET` health-check watchdog |
+| External watchdog | `cmd/focusguard-watchdog`: Windows SCM health checks and recovery |
 
 ---
 
@@ -83,7 +83,7 @@ Packages are divided into 4 architectural layers (`docs/reorg-plan.md`):
 5. **Non-blocking IPC**:
    Tray and web calls to the daemon use `SendWithTimeout` (5s max).
 6. **Platform separation & OS mocking**:
-   Keep OS-specific code in `_windows.go` and `_linux.go`. Mock external system calls (`execCommand`, `os.Stat`, `osRename`, `goos`). Never invoke real system binaries in unit tests.
+   Desktop targets Windows only; keep Windows API code in `_windows.go`. Mock external system calls (`execCommand`, `os.Stat`, `osRename`, `goos`). Never invoke real system binaries in unit tests.
 7. **Input sanitization & defense-in-depth**:
    Sanitize all domains (`sanitizeDomain`), enforce reasonable bounds (pomodoro work ≤ 7 days, goal ≤ 1440m), sweep orphan firewall rules on sync.
 8. **Session log**:
