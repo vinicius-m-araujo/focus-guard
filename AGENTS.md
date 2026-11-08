@@ -20,6 +20,7 @@ FocusGuard is exclusively built for and runs on **Windows 10/11** (x86_64 and AR
   - Autostart: Windows Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
   - Paths: `%ProgramFiles%\FocusGuard` (binaries) and `%ProgramData%\FocusGuard` (state and logs)
   - Scripts: PowerShell 5.1 & 7+ (`.ps1`). Shell scripts (`.sh`) are restricted to development tooling under Git Bash / MSYS2.
+  - Windows Defender mitigation: `focusguard doctor` Defender inspection & Authenticode signing via `scripts/sign-windows.ps1` (`-TestCert`, `-CertThumbprint`, `Set-AuthenticodeSignature` fallback).
 
 ---
 

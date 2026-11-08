@@ -75,10 +75,10 @@ func healthyEnv(t *testing.T) doctorEnv {
 }
 
 // fakeServiceRunning faz toda consulta de serviço devolver "rodando".
-// Também responde ao powershell (checkDefender).
+// Também responde ao powershell (checkDefender) com ambiente Windows Defender saudável.
 func fakeServiceRunning(name string, args ...string) ([]byte, error) {
 	if name == "powershell" {
-		return []byte("C:\\Program Files\\FocusGuard\nC:\\ProgramData\\FocusGuard"), nil
+		return []byte("THREATS:\nEX_PATHS:C:\\Program Files\\FocusGuard;C:\\ProgramData\\FocusGuard;C:\\Windows\\System32\\drivers\\etc\\hosts\nEX_PROCS:focusguard-daemon.exe;focusguard.exe\nFIREWALL:Running\nPORT53:Free\nICS:Stopped"), nil
 	}
 	return []byte("running"), nil
 }
@@ -451,5 +451,141 @@ func TestDoctor_CheckDefender(t *testing.T) {
 		if !strings.Contains(defMissing.Fix, "Add-MpPreference") {
 			t.Errorf("fix = %q, want mencionando Add-MpPreference", defMissing.Fix)
 		}
+	}
+}
+
+func TestDoctor_DefenderThreatDetectedFails(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows Defender é específico do Windows")
+	}
+	env := healthyEnv(t)
+	env.exec = func(name string, args ...string) ([]byte, error) {
+		if name == "powershell" {
+			return []byte("THREATS:SettingsModifier:Win32/HostsFileHijack\nEX_PATHS:C:\\Program Files\\FocusGuard;C:\\Windows\\System32\\drivers\\etc\\hosts\nEX_PROCS:focusguard-daemon.exe\nFIREWALL:Running\nPORT53:Free\nICS:Stopped"), nil
+		}
+		return fakeServiceRunning(name, args...)
+	}
+
+	results := runDoctor(env)
+	def := findResult(results, "Windows Defender")
+	if def == nil {
+		t.Fatal("checagem Windows Defender ausente")
+	}
+	if def.Status != statusFail {
+		t.Errorf("status = %v, want fail quando há detecção de falso positivo/ameaça", def.Status)
+	}
+	if !strings.Contains(def.Message, "HostsFileHijack") {
+		t.Errorf("message = %q, want mencionando HostsFileHijack", def.Message)
+	}
+	if !strings.Contains(def.Fix, "Histórico de proteção") || !strings.Contains(def.Fix, "Add-MpPreference") {
+		t.Errorf("fix = %q, want mencionando Histórico de proteção e Add-MpPreference", def.Fix)
+	}
+}
+
+func TestDoctor_DefenderFirewallStoppedWarns(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows Defender é específico do Windows")
+	}
+	env := healthyEnv(t)
+	env.exec = func(name string, args ...string) ([]byte, error) {
+		if name == "powershell" {
+			return []byte("THREATS:\nEX_PATHS:C:\\Program Files\\FocusGuard;C:\\Windows\\System32\\drivers\\etc\\hosts\nEX_PROCS:focusguard-daemon.exe\nFIREWALL:Stopped\nPORT53:Free\nICS:Stopped"), nil
+		}
+		return fakeServiceRunning(name, args...)
+	}
+
+	results := runDoctor(env)
+	def := findResult(results, "Windows Defender")
+	if def == nil {
+		t.Fatal("checagem Windows Defender ausente")
+	}
+	if def.Status != statusWarn {
+		t.Errorf("status = %v, want warn quando firewall (mpssvc) está parado", def.Status)
+	}
+	if !strings.Contains(def.Message, "mpssvc") && !strings.Contains(def.Message, "Firewall") {
+		t.Errorf("message = %q, want mencionando firewall/mpssvc", def.Message)
+	}
+	if !strings.Contains(def.Fix, "mpssvc") {
+		t.Errorf("fix = %q, want instrução de iniciar mpssvc", def.Fix)
+	}
+}
+
+func TestDoctor_DefenderPort53BlockedWarns(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows Defender é específico do Windows")
+	}
+	env := healthyEnv(t)
+	env.exec = func(name string, args ...string) ([]byte, error) {
+		if name == "powershell" {
+			return []byte("THREATS:\nEX_PATHS:C:\\Program Files\\FocusGuard;C:\\Windows\\System32\\drivers\\etc\\hosts\nEX_PROCS:focusguard-daemon.exe\nFIREWALL:Running\nPORT53:Blocked: address already in use\nICS:Running"), nil
+		}
+		return fakeServiceRunning(name, args...)
+	}
+
+	results := runDoctor(env)
+	def := findResult(results, "Windows Defender")
+	if def == nil {
+		t.Fatal("checagem Windows Defender ausente")
+	}
+	if def.Status != statusWarn {
+		t.Errorf("status = %v, want warn quando porta 53 está bloqueada/conflitada", def.Status)
+	}
+	if !strings.Contains(def.Message, "porta 53") {
+		t.Errorf("message = %q, want mencionando porta 53", def.Message)
+	}
+	if !strings.Contains(def.Fix, "SharedAccess") {
+		t.Errorf("fix = %q, want mencionando desativar SharedAccess", def.Fix)
+	}
+}
+
+func TestDoctor_DefenderHostsNotExcludedWarns(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows Defender é específico do Windows")
+	}
+	env := healthyEnv(t)
+	env.exec = func(name string, args ...string) ([]byte, error) {
+		if name == "powershell" {
+			// FocusGuard está excluído, mas hosts NÃO está.
+			return []byte("THREATS:\nEX_PATHS:C:\\Program Files\\FocusGuard\nEX_PROCS:focusguard-daemon.exe\nFIREWALL:Running\nPORT53:Free\nICS:Stopped"), nil
+		}
+		return fakeServiceRunning(name, args...)
+	}
+
+	results := runDoctor(env)
+	def := findResult(results, "Windows Defender")
+	if def == nil {
+		t.Fatal("checagem Windows Defender ausente")
+	}
+	if def.Status != statusWarn {
+		t.Errorf("status = %v, want warn quando arquivo hosts não está nas exclusões", def.Status)
+	}
+	if !strings.Contains(def.Message, "hosts") {
+		t.Errorf("message = %q, want mencionando hosts", def.Message)
+	}
+	if !strings.Contains(def.Fix, "hosts") {
+		t.Errorf("fix = %q, want mencionando adicionar hosts às exclusões", def.Fix)
+	}
+}
+
+func TestDoctor_DefenderUnelevatedPasses(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows Defender é específico do Windows")
+	}
+	env := healthyEnv(t)
+	env.isAdmin = func() bool { return false }
+	env.exec = func(name string, args ...string) ([]byte, error) {
+		if name == "powershell" {
+			return []byte("THREATS:\nEX_PATHS:N/A: Must be an administrator to view exclusions\nEX_PROCS:N/A: Must be an administrator to view exclusions\nFIREWALL:Running\nPORT53:Free\nICS:Stopped"), nil
+		}
+		return fakeServiceRunning(name, args...)
+	}
+
+	results := runDoctor(env)
+	def := findResult(results, "Windows Defender")
+	if def == nil {
+		t.Fatal("checagem Windows Defender ausente")
+	}
+	if def.Status != statusPass {
+		t.Errorf("status = %v, want pass quando executado sem elevação e sem ameaças", def.Status)
 	}
 }

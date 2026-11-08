@@ -154,6 +154,8 @@ FocusGuard interacts directly with Windows OS perimeters:
 - **Windows Service Control Manager (SCM)**: `focusguard-daemon` and `focusguard-watchdog` are registered as Windows services via `golang.org/x/sys/windows/svc`.
 - **Windows Registry Autostart**: The user tray app registers under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 - **Process Guard**: Distracting desktop applications are matched by executable name and terminated via Windows Toolhelp32 APIs.
+- **Windows Defender & Security Mitigation**: `focusguard doctor` detects Defender false positives on `hosts` (`SettingsModifier:Win32/HostsFileHijack`), verifies exclusion lists (`Add-MpPreference`), monitors Windows Defender Firewall service status (`mpssvc`), and checks for port 53/DNS conflicts (e.g. `SharedAccess`).
+- **Authenticode Code Signing**: `scripts/sign-windows.ps1` supports official PFX signing, local self-signed test certificates (`-TestCert` via `New-SelfSignedCertificate`), Windows Certificate Store thumbprints (`-CertThumbprint`), and falls back to PowerShell native `Set-AuthenticodeSignature` when `signtool.exe` is absent.
 
 ---
 

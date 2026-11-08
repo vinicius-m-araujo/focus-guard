@@ -361,7 +361,7 @@ func checkHosts(env doctorEnv) doctorResult {
 		return doctorResult{
 			Name: "Hosts", Status: statusFail,
 			Message: "bloqueios ativos sem entrada no hosts: " + strings.Join(missing, ", "),
-			Fix:     "O daemon deve re-aplicá-los — reinicie o serviço.",
+			Fix:     "O daemon deve re-aplicá-los — se o Windows Defender reverteu o arquivo (falso positivo HostsFileHijack), adicione exclusão: Add-MpPreference -ExclusionPath 'C:\\Windows\\System32\\drivers\\etc\\hosts'.",
 		}
 	}
 	return doctorResult{Name: "Hosts", Status: statusPass, Message: "hosts consistente com os bloqueios ativos"}
@@ -381,7 +381,7 @@ func checkFirewall(env doctorEnv) doctorResult {
 		return doctorResult{
 			Name: "Firewall", Status: statusWarn,
 			Message: "não foi possível consultar o firewall: " + resp.ProtectionError,
-			Fix:     "O daemon pode precisar de elevação para gerenciar as regras.",
+			Fix:     "Verifique se o serviço Windows Defender Firewall (mpssvc) está em execução e se o daemon possui elevação.",
 		}
 	}
 	switch {

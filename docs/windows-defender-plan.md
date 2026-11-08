@@ -232,21 +232,36 @@ Se o secret não estiver configurado, a release continua normal (sem assinatura)
 #### Como testar localmente
 
 ```powershell
-# Assinar todos os .exe e .msi em um diretório
+# 1. Assinatura oficial com arquivo PFX
 .\scripts\sign-windows.ps1 `
   -CertificatePath "C:\path\to\cert.pfx" `
   -CertificatePassword "senha" `
   -SearchPath "bin"
 
-# Verificar se arquivos estão assinados (sem assinar)
+# 2. Assinatura local com certificado de teste auto-assinado (Authenticode)
+# Gera/reutiliza certificado em Cert:\CurrentUser\My e usa Set-AuthenticodeSignature nativo
 .\scripts\sign-windows.ps1 `
-  -CertificatePath "C:\path\to\cert.pfx" `
-  -CertificatePassword "senha" `
+  -TestCert `
+  -SearchPath "bin"
+
+# 3. Assinatura com certificado por Thumbprint do repositório Windows
+.\scripts\sign-windows.ps1 `
+  -CertThumbprint "THUMBPRINT" `
+  -SearchPath "bin"
+
+# 4. Verificar se arquivos estão assinados (sem assinar)
+.\scripts\sign-windows.ps1 `
   -SearchPath "bin" `
   -VerifyOnly
 ```
 
-### Fase 2: Mitigações Comportamentais (1 semana)
+### Fase 2: Mitigações Comportamentais & Diagnóstico no Doctor
+- [x] Diagnóstico avançado no `focusguard doctor`:
+  - Detecção de falsos positivos do Windows Defender no arquivo `hosts` (`SettingsModifier:Win32/HostsFileHijack`) via `Get-MpThreatDetection`
+  - Verificação de exclusões do Windows Defender para binários do FocusGuard e `C:\Windows\System32\drivers\etc\hosts`
+  - Verificação de status do serviço Windows Defender Firewall (`mpssvc`)
+  - Detecção de bloqueio ou conflito na porta 53/DNS com o `SharedAccess` (Compartilhamento de Conexão)
+  - Instruções de remediação em português com comandos `Add-MpPreference` e passos na Segurança do Windows
 - [ ] Atualizar todas as versões stale nos `versioninfo.json`
 - [ ] Adicionar `RequestedExecutionLevel asInvoker` para binários não-elevados
 - [ ] Testar com Windows Defender em ambiente limpo
