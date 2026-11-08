@@ -80,7 +80,7 @@ Every contributor and AI agent must adhere to these 10 core architectural decisi
 
 ## 3. GitHub Actions Zero-Failure Protocol (CI Immunity)
 
-Every commit must pass all GitHub Actions CI checks (`.github/workflows/test.yml`). To ensure **100% CI pass rate**, follow this protocol:
+GitHub Actions CI checks (`.github/workflows/test.yml`) run on `windows-latest` when generating releases (tags `v*`, release publications, or manual `workflow_dispatch`). To ensure **100% CI pass rate**, follow this protocol:
 
 ### Complete Mapping of CI Checks:
 1. **Windows Platform Policy (`scripts/test-windows-platform.ps1`)**: Verifies no Linux artifacts exist in `.goreleaser.yaml`, no `*_linux*.go` files remain, CI runs on `windows-latest`, and no `android/` directory exists.

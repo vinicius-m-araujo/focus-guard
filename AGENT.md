@@ -223,7 +223,7 @@ Packages are organized in 4 layers (`docs/reorg-plan.md`):
 
 ### 5.1 GitHub Actions Zero-Failure Protocol (CI Immunity)
 
-Every pull request and push runs `.github/workflows/test.yml` on `windows-latest`. To guarantee **100% CI pass rate**, every change must respect the following 18 validations:
+The GitHub Actions CI suite (`.github/workflows/test.yml`) runs on `windows-latest` when generating releases (tags `v*`, release publications, or manual `workflow_dispatch`). To guarantee **100% CI pass rate**, every change must respect the following 18 validations:
 
 | # | CI Validation Step | Failure Risk | Prevention Rule |
 |---|---|---|---|
