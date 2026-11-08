@@ -192,6 +192,7 @@ export function Agenda() {
                     placeholder="ex: Estudo matinal"
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void add()}
                   />
                 </div>
               </div>
@@ -213,8 +214,8 @@ export function Agenda() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="flex flex-col gap-2 sm:col-span-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-2 sm:col-span-2">
                   <Label htmlFor="agenda-windows">Janelas (ex: 08:00-12:00,14:00-18:00)</Label>
                   <Input
                     id="agenda-windows"
@@ -222,6 +223,7 @@ export function Agenda() {
                     placeholder="deixe vazio para usar início/fim"
                     value={windows}
                     onChange={(e) => setWindows(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void add()}
                   />
                 </div>
                 {!windows.trim() && (
@@ -233,6 +235,7 @@ export function Agenda() {
                         type="time"
                         value={start}
                         onChange={(e) => setStart(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && void add()}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -242,6 +245,7 @@ export function Agenda() {
                         type="time"
                         value={end}
                         onChange={(e) => setEnd(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && void add()}
                       />
                     </div>
                   </>

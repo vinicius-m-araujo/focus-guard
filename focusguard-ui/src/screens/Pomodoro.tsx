@@ -87,9 +87,9 @@ export function Pomodoro() {
       {
         action: "pomodoro",
         preset,
-        work_min: Number(work) || undefined,
-        rest_min: Number(rest) || undefined,
-        cycles: Number(cycles) || undefined,
+        work_min: Number(work) > 0 ? Number(work) : undefined,
+        rest_min: Number(rest) >= 0 && rest.trim() !== "" ? Number(rest) : undefined,
+        cycles: Number(cycles) > 0 ? Number(cycles) : undefined,
         strict,
         save,
         label: label.trim() || undefined,

@@ -203,6 +203,7 @@ export function Configuracoes() {
               className="max-w-40"
               value={customGoal}
               onChange={(e) => setCustomGoal(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveCustom()}
             />
             <Button variant="secondary" onClick={saveCustom} disabled={busy}>
               Definir
@@ -503,6 +504,10 @@ function ReportCard() {
                   value={cfg?.export_path ?? ""}
                   placeholder="~/FocusGuardReports"
                   onChange={(e) => setCfg({ ...(cfg ?? {}), export_path: e.target.value })}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    void save({ ...(cfg ?? {}), export_path: cfg?.export_path ?? "" })
+                  }
                   disabled={busy}
                 />
                 <Button
@@ -777,6 +782,7 @@ function UsersCard() {
                 placeholder="ex.: maria"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void addUser()}
                 disabled={busy}
               />
             </div>
@@ -789,6 +795,7 @@ function UsersCard() {
                 placeholder="mínimo 8 caracteres"
                 value={newPass}
                 onChange={(e) => setNewPass(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void addUser()}
                 disabled={busy}
               />
             </div>
@@ -829,6 +836,7 @@ function UsersCard() {
                 autoComplete="new-password"
                 value={pw1}
                 onChange={(e) => setPw1(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void changePassword()}
                 disabled={busy}
               />
             </div>
@@ -840,6 +848,7 @@ function UsersCard() {
                 autoComplete="new-password"
                 value={pw2}
                 onChange={(e) => setPw2(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void changePassword()}
                 disabled={busy}
               />
             </div>

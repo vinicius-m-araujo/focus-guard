@@ -328,8 +328,8 @@ export function Estatisticas() {
                 </p>
               ) : (
                 <ul className="divide-y">
-                  {sessions.slice(0, 15).map((s) => (
-                    <SessionRow key={`${s.start}-${s.preset}`} session={s} />
+                  {sessions.slice(0, 15).map((s, idx) => (
+                    <SessionRow key={`${s.start}-${s.preset}-${idx}`} session={s} />
                   ))}
                 </ul>
               )}

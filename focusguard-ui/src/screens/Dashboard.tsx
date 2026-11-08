@@ -133,7 +133,6 @@ export function Dashboard({ onNavigate }: { onNavigate: (s: ScreenId) => void })
             className={cn(
               "flex-row items-center justify-between gap-4",
               statusKind === "focus" && "ring-emerald-500/30",
-              statusKind === "focus" && "ring-emerald-500/30",
             )}
           >
             <CardContent className="flex flex-1 flex-wrap items-center gap-4 px-5 py-4">

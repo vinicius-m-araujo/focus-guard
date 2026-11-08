@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lock, ShieldCheck } from "lucide-react";
+import { FolderPlus, Lock, ShieldCheck } from "lucide-react";
 import { api, DaemonError } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { EmptyCard, Screen, ScreenHeader } from "@/components/screen";
 import { useData } from "@/context";
 import { formatClock } from "@/hooks/useCountdown";
@@ -46,7 +47,76 @@ export function Bloquear() {
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState<ConflictState | null>(null);
 
+  // Estados para criação de preset personalizado diretamente da tela de bloqueio
+  const [createPresetOpen, setCreatePresetOpen] = useState(false);
+  const [newPresetName, setNewPresetName] = useState("");
+  const [newPresetLabel, setNewPresetLabel] = useState("");
+  const [newPresetDomains, setNewPresetDomains] = useState("");
+  const [creatingPreset, setCreatingPreset] = useState(false);
+
   const effectiveDuration = duration === "custom" ? `${customMin}m` : duration;
+
+  const openCreatePreset = (initialDomain?: string) => {
+    setNewPresetName("");
+    setNewPresetLabel("");
+    setNewPresetDomains(initialDomain ? initialDomain.trim() : "");
+    setCreatePresetOpen(true);
+  };
+
+  const submitCreatePreset = async () => {
+    const cleanName = newPresetName
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9_-]/g, "");
+
+    if (!cleanName) {
+      toast("Informe o nome do preset.", "err");
+      return;
+    }
+
+    const doms = newPresetDomains
+      .split(/[,\s\n]+/)
+      .map((d) =>
+        d
+          .trim()
+          .toLowerCase()
+          .replace(/^https?:\/\//, "")
+          .replace(/\/.*$/, "")
+      )
+      .filter(Boolean);
+
+    const uniqueDoms = Array.from(new Set(doms));
+    if (uniqueDoms.length === 0) {
+      toast("Informe ao menos um domínio para o preset.", "err");
+      return;
+    }
+
+    setCreatingPreset(true);
+    try {
+      const resp = await api.presetAdd(
+        cleanName,
+        newPresetLabel.trim() || cleanName,
+        uniqueDoms
+      );
+      if (!resp.success) {
+        toast(resp.message ?? "Falha ao criar preset.", "err");
+        return;
+      }
+      toast(resp.message ?? "Preset criado com sucesso!");
+      await refresh();
+      setMode("preset");
+      setPreset(cleanName);
+      setCreatePresetOpen(false);
+      setNewPresetName("");
+      setNewPresetLabel("");
+      setNewPresetDomains("");
+    } catch (e) {
+      toast(e instanceof DaemonError ? e.message : "Erro ao criar preset.", "err");
+    } finally {
+      setCreatingPreset(false);
+    }
+  };
 
   const submit = async (resolve?: { extend?: boolean; replace?: boolean }) => {
     if (duration === "custom") {
@@ -77,7 +147,7 @@ export function Bloquear() {
       });
       if (resp.conflict) {
         setConflict({
-          domain: mode === "domain" ? domain.trim() : "",
+          domain: mode === "domain" ? domain.trim() : (resp.conflict_block?.domain || preset),
           expires: resp.conflict_block?.expires_at,
         });
         return;
@@ -97,6 +167,8 @@ export function Bloquear() {
       setBusy(false);
     }
   };
+
+  const selectedPresetObj = presets.find((p) => p.name === preset);
 
   return (
     <Screen>
@@ -124,26 +196,68 @@ export function Bloquear() {
             </Tabs>
 
             {mode === "preset" ? (
-              <div className="flex flex-wrap gap-2">
-                {presets.map((p) => (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {presets.map((p) => (
+                    <Button
+                      key={p.name}
+                      type="button"
+                      variant={preset === p.name ? "default" : "outline"}
+                      title={p.domains.join(", ")}
+                      onClick={() => setPreset(p.name)}
+                      className="h-7"
+                    >
+                      {p.label}
+                      <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">
+                        {p.domains.length}
+                      </span>
+                    </Button>
+                  ))}
                   <Button
-                    key={p.name}
                     type="button"
-                    variant={preset === p.name ? "default" : "outline"}
-                    title={p.domains.join(", ")}
-                    onClick={() => setPreset(p.name)}
-                    className="h-7"
+                    variant="outline"
+                    onClick={() => openCreatePreset()}
+                    className="h-7 border-dashed gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    title="Criar novo preset personalizado"
                   >
-                    {p.label}
-                    <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">
-                      {p.domains.length}
-                    </span>
+                    <FolderPlus className="size-3.5" />
+                    Novo preset
                   </Button>
-                ))}
+                </div>
+
+                {selectedPresetObj && (
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs flex flex-col gap-1.5">
+                    <div className="font-medium text-foreground">
+                      Domínios incluídos neste preset ({selectedPresetObj.domains.length}):
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedPresetObj.domains.map((d) => (
+                        <span
+                          key={d}
+                          className="rounded bg-background px-1.5 py-0.5 font-mono text-[11px] border border-border/50 text-muted-foreground"
+                        >
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="domain">Domínio</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="domain">Domínio</Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => openCreatePreset(domain)}
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <FolderPlus className="size-3.5 mr-1" />
+                    {domain.trim() ? "Criar preset com este domínio" : "Criar novo preset"}
+                  </Button>
+                </div>
                 <Input
                   id="domain"
                   type="text"
@@ -200,6 +314,7 @@ export function Bloquear() {
         </Card>
       )}
 
+      {/* Diálogo de conflito de bloqueio */}
       <Dialog
         open={conflict !== null}
         onOpenChange={(open) => !open && setConflict(null)}
@@ -226,6 +341,76 @@ export function Bloquear() {
             </Button>
             <Button disabled={busy} onClick={() => void submit({ extend: true })}>
               Somar {effectiveDuration}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para criação de preset personalizado diretamente do Bloquear */}
+      <Dialog open={createPresetOpen} onOpenChange={setCreatePresetOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Criar preset personalizado</DialogTitle>
+            <DialogDescription>
+              Crie uma categoria com os domínios que você deseja bloquear juntos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="new-preset-name">Identificador / Nome</Label>
+              <Input
+                id="new-preset-name"
+                type="text"
+                placeholder="ex: foco-estudos"
+                value={newPresetName}
+                onChange={(e) => setNewPresetName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void submitCreatePreset()}
+              />
+              <span className="text-[11px] text-muted-foreground">
+                Identificador do preset (letras, números e hifens).
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="new-preset-label">Rótulo de exibição (opcional)</Label>
+              <Input
+                id="new-preset-label"
+                type="text"
+                placeholder="ex: Foco nos Estudos"
+                value={newPresetLabel}
+                onChange={(e) => setNewPresetLabel(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void submitCreatePreset()}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="new-preset-domains">Domínios a bloquear</Label>
+              <Textarea
+                id="new-preset-domains"
+                placeholder="ex: youtube.com, twitter.com, reddit.com&#10;twitch.tv"
+                rows={3}
+                value={newPresetDomains}
+                onChange={(e) => setNewPresetDomains(e.target.value)}
+              />
+              <span className="text-[11px] text-muted-foreground">
+                Separe os domínios por vírgula, espaço ou quebra de linha.
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={creatingPreset}
+              onClick={() => setCreatePresetOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={creatingPreset}
+              onClick={() => void submitCreatePreset()}
+            >
+              <FolderPlus className="size-4" />
+              {creatingPreset ? "Criando…" : "Criar e selecionar"}
             </Button>
           </DialogFooter>
         </DialogContent>

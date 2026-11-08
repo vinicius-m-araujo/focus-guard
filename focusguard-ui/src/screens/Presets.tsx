@@ -33,13 +33,24 @@ export function Presets() {
   const [toRemove, setToRemove] = useState<Preset | null>(null);
 
   const add = async () => {
-    const n = name.trim().toLowerCase().replace(/\s+/g, "-");
+    const n = name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9_-]/g, "");
     const doms = domains
-      .split(",")
-      .map((d) => d.trim().toLowerCase())
+      .split(/[,\s\n]+/)
+      .map((d) =>
+        d
+          .trim()
+          .toLowerCase()
+          .replace(/^https?:\/\//, "")
+          .replace(/\/.*$/, "")
+      )
       .filter(Boolean);
-    if (!n || doms.length === 0) {
-      toast("Informe o nome e ao menos um domínio.", "err");
+    const uniqueDoms = Array.from(new Set(doms));
+    if (!n || uniqueDoms.length === 0) {
+      toast("Informe o nome e ao menos um domínio válido.", "err");
       return;
     }
     const res = await run(
@@ -47,7 +58,7 @@ export function Presets() {
         action: "preset-add",
         preset_name: n,
         preset_label: label.trim() || name.trim(),
-        preset_domains: doms,
+        preset_domains: uniqueDoms,
       },
       { success: "Preset criado!", error: "Falha ao criar." },
     );
@@ -94,6 +105,7 @@ export function Presets() {
                     placeholder="ex: estudos"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void add()}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -104,17 +116,19 @@ export function Presets() {
                     placeholder="ex: Estudos profundos"
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void add()}
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="preset-domains">Domínios (separados por vírgula)</Label>
+                <Label htmlFor="preset-domains">Domínios (separados por vírgula ou espaço)</Label>
                 <Input
                   id="preset-domains"
                   type="text"
                   placeholder="ex: reddit.com, news.ycombinator.com"
                   value={domains}
                   onChange={(e) => setDomains(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && void add()}
                 />
               </div>
               <Button onClick={() => void add()} disabled={busy} size="lg" className="w-full">
