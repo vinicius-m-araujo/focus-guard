@@ -7,7 +7,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não publicado]
 
-## [0.24.0] - 2026-11-06
+## [0.25.0] - 2026-11-08
+
+### 🛡️ Mitigação contra Windows Defender & Assinatura Authenticode
+
+- **Detecção de Falsos Positivos do Defender no `focusguard doctor`** —
+  inspeção ativa via `Get-MpThreatDetection` para identificar se o Windows Defender bloqueou ou colocou em quarentena o arquivo `hosts` (`SettingsModifier:Win32/HostsFileHijack`) ou executáveis do FocusGuard, com orientações claras de remediação na Segurança do Windows.
+- **Verificação de Exclusões e Saúde do Firewall** —
+  auditoria automatizada no `focusguard doctor` para garantir que `C:\Windows\System32\drivers\etc\hosts` e os binários do FocusGuard estejam na lista de exclusões (`Add-MpPreference`), verificação do status do serviço Windows Defender Firewall (`mpssvc`), e sondagem de conflito da porta 53 com o serviço `SharedAccess`.
+- **Suporte a Certificados de Teste e Thumbprint no Script de Assinatura** —
+  reformulado `scripts/sign-windows.ps1` com parâmetro `-TestCert` (geração ou reuso de certificado auto-assinado local em `Cert:\CurrentUser\My`), parâmetro `-CertThumbprint` para repositórios Windows, fallback nativo para `Set-AuthenticodeSignature` (sem necessidade do SDK) e suporte a `-NoTimestamp`.
+
+### 🔒 Resolução de Vulnerabilidades e Protocolo Zero-Failure
+
+- **Remoção de Dependências Vulneráveis no Frontend (`focusguard-ui`)** —
+  eliminação da CLI `shadcn` das dependências diretas de produção, isolamento de estilos Tailwind v4 em `shadcn.css`, e atualização de `vite` (^6.4.5) e `vitest` (^4.1.12), zerando vulnerabilidades de alta severidade no `npm audit`.
+- **Auditoria de Dependências Go (`govulncheck`)** —
+  atualização para Go 1.26.10, atualização de `github.com/creativeprojects/go-selfupdate` para v1.7.0 (eliminando o pacote deprecado `golang.org/x/crypto/openpgp` em favor de `ProtonMail/go-crypto`) e atualização de `golang.org/x/crypto` para v0.58.0, zerando relatórios no `govulncheck`.
+- **Governança e Protocolo CI** —
+  consolidação das 10 Decisões Arquiteturais (ADRs) e do protocolo de imunidade do CI em `AGENTS.md` e `GEMINI.md`.
 
 ### 🛡️ Plataforma Windows Exclusiva & Remoção de Linux e Android
 
