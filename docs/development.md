@@ -4,7 +4,7 @@ O FocusGuard suporta Windows (amd64 e arm64). Linux e Android não são suportad
 
 ## Preparação
 
-- Instale Go 1.26.5 e Node.js 22 ou superior com npm.
+- Instale Go 1.26.10 e Node.js 22 ou superior com npm.
 - Para comandos Make e scripts Bash, use Git Bash e GNU Make. Para o fluxo nativo, use PowerShell.
 - Para MSI, instale WiX e a versão de go-msi fixada em `.github/workflows/release.yml`.
 - O detector de corrida exige CGO e GCC compatível (MinGW-w64 UCRT).

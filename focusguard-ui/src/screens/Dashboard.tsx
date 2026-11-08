@@ -185,8 +185,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (s: ScreenId) => void })
             </EmptyCard>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {blocks.map((b) => (
-                <BlockCard key={b.domain} block={b} />
+              {blocks.map((b, idx) => (
+                <BlockCard key={b.domain || `block-${idx}`} block={b} />
               ))}
             </div>
           )}
