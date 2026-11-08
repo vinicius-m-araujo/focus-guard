@@ -7,6 +7,23 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não publicado]
 
+## [0.26.0] - 2026-11-08
+
+### 🎯 Criação de Presets na Tela Bloquear & Melhorias Gerais de UI
+
+- **Criação de Presets Customizados na Tela Bloquear** —
+  adicionado botão "+ Novo preset" na aba de categorias e atalho "Criar preset com este domínio" na aba de domínio específico na tela `Bloquear`, permitindo criar categorias personalizadas com identificador, rótulo amigável opcional e múltiplos domínios (com suporte a vírgulas, espaços e quebras de linha) sem precisar sair do fluxo de bloqueio.
+- **Pré-visualização e Seleção Automática de Presets** —
+  presets recém-criados são automaticamente selecionados na tela de bloqueio com atualização reativa do catálogo, acompanhados por visualização inline dos domínios incluídos no preset selecionado.
+- **Tratamento Resiliente de Domínios e URLs na UI** —
+  higienização inteligente de domínios em `Bloquear` e `Presets` com remoção automática de prefixos `https://` / `http://`, barras de caminho e espaços, além de de-duplicação automática via `Set`.
+- **Acessibilidade e Compatibilidade de Componentes Radix UI** —
+  implementado `React.forwardRef` em todos os componentes base (`DialogOverlay`, `DialogContent`, `SheetOverlay`, `SheetContent`, `Switch`, `Checkbox`, `Input`, `Textarea`, `SelectTrigger`, `SelectContent`, `SelectItem`), eliminando advertências do React no console ao repassar referências de foco e animação.
+- **Atalhos de Teclado (Enter) em Formulários da Interface** —
+  adicionado suporte à tecla Enter em campos de entrada de texto e diálogos em `Bloquear`, `Presets`, `Agenda`, `Apps` e `Configuracoes` para agilizar submissões.
+- **Correções de Layout e Casos Limite** —
+  corrigido suporte a tempo de descanso zero (`0m`) no Pomodoro, balanceamento do grid de janelas na Agenda, chave única em listas de sessões em Estatísticas e remoção de classes redundantes no Dashboard.
+
 ## [0.25.0] - 2026-11-08
 
 ### 🛡️ Mitigação contra Windows Defender & Assinatura Authenticode
